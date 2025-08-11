@@ -8,6 +8,12 @@ SourDough Scout is a full-stack web application that helps users discover authen
 
 Preferred communication style: Simple, everyday language.
 
+Key messaging: 
+- Position sourdough pizza as "how to find the best pizza" rather than just a directory
+- Emphasize that sourdough is a quality indicator - restaurants that choose the complexity of sourdough don't cut corners anywhere else
+- Highlight the craftsmanship and expertise required for sourdough (starter maintenance, fermentation timing, expert baking knowledge)
+- Explain that sourdough adds layers of complexity that most restaurants avoid, making it an excellent filter for exceptional pizzerias
+
 ## System Architecture
 
 ### Frontend Architecture

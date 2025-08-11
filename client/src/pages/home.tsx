@@ -70,13 +70,12 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-6xl font-black mb-6 leading-tight">
-              DISCOVER<br />
-              <span className="text-warm-beige">SOURDOUGH PIZZA</span><br />
-              ACROSS AMERICA
+              HOW TO FIND<br />
+              <span className="text-warm-beige">THE BEST PIZZA</span><br />
+              IN AMERICA
             </h1>
             <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto font-light">
-              Find authentic naturally leavened pizza restaurants on your journey. 
-              Perfect for travelers seeking that perfect sourdough crust.
+              Sourdough pizza is the ultimate quality indicator. Restaurants that choose the complexity of naturally leavened dough don't cut corners anywhere else.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
@@ -229,6 +228,72 @@ export default function Home() {
               <p className="text-gray-500">Try adjusting your search or filter criteria</p>
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Why Sourdough Matters Section */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              WHY SOURDOUGH
+              <span className="block text-warm-orange">MATTERS</span>
+            </h2>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Sourdough is the ultimate quality filter for finding exceptional pizzerias
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="bg-warm-beige p-8 rounded-2xl">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">The Sourdough Challenge</h3>
+                <p className="text-gray-700 mb-4 leading-relaxed">
+                  Most restaurants avoid sourdough because it adds layers of complexity. Unlike commercial yeast, 
+                  maintaining a sourdough starter requires expert-level baking knowledge and constant attention.
+                </p>
+                <p className="text-gray-700 mb-4 leading-relaxed">
+                  It's unpredictable, hard to teach to employees, and demands someone in the kitchen who truly 
+                  understands the craft of fermentation and timing.
+                </p>
+                <p className="text-gray-700 leading-relaxed font-medium">
+                  When a restaurant chooses sourdough, they're signaling they don't cut corners anywhere.
+                </p>
+              </div>
+            </div>
+            
+            <div className="space-y-6">
+              <div className="flex items-start gap-4">
+                <div className="bg-warm-orange text-white w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <i className="fas fa-seedling"></i>
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-2">Quality Ingredients</h4>
+                  <p className="text-gray-600">Restaurants using sourdough typically make similar quality choices with all ingredients</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-4">
+                <div className="bg-warm-orange text-white w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <i className="fas fa-clock"></i>
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-2">Time & Patience</h4>
+                  <p className="text-gray-600">Sourdough fermentation takes 24-72 hours, showing commitment to process over profit</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-4">
+                <div className="bg-warm-orange text-white w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0">
+                  <i className="fas fa-award"></i>
+                </div>
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-2">Expert Craftsmanship</h4>
+                  <p className="text-gray-600">Requires skilled bakers who understand fermentation, timing, and traditional techniques</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
