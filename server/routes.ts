@@ -2,9 +2,13 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertRestaurantSchema } from "@shared/schema";
+import { registerScrapeRoutes } from "./scrape-routes";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Register scraping routes
+  registerScrapeRoutes(app);
   
   // Get all restaurants
   app.get("/api/restaurants", async (req, res) => {

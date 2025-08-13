@@ -18,6 +18,7 @@ export default function Header() {
             <a href="#map" className="text-gray-700 hover:text-warm-orange transition-colors">Map</a>
             <a href="#search" className="text-gray-700 hover:text-warm-orange transition-colors">Search</a>
             <a href="#about" className="text-gray-700 hover:text-warm-orange transition-colors">About</a>
+            <Link href="/admin" className="text-gray-700 hover:text-warm-orange transition-colors">Admin</Link>
           </div>
           
           <div className="md:hidden">

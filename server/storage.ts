@@ -1,4 +1,6 @@
-import { type Restaurant, type InsertRestaurant } from "@shared/schema";
+import { restaurants, type Restaurant, type InsertRestaurant } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -13,6 +15,60 @@ export interface IStorage {
   getRestaurantsByState(state: string): Promise<Restaurant[]>;
   searchRestaurants(query: string): Promise<Restaurant[]>;
   createRestaurant(restaurant: InsertRestaurant): Promise<Restaurant>;
+}
+
+export class DatabaseStorage implements IStorage {
+  async getUser(id: string): Promise<any | undefined> {
+    // TODO: Implement user functionality with proper schema
+    return undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<any | undefined> {
+    // TODO: Implement user functionality with proper schema
+    return undefined;
+  }
+
+  async createUser(insertUser: any): Promise<any> {
+    // TODO: Implement user functionality with proper schema
+    return insertUser;
+  }
+
+  async getAllRestaurants(): Promise<Restaurant[]> {
+    return await db.select().from(restaurants);
+  }
+
+  async getRestaurantById(id: string): Promise<Restaurant | undefined> {
+    const [restaurant] = await db.select().from(restaurants).where(eq(restaurants.id, id));
+    return restaurant || undefined;
+  }
+
+  async getRestaurantsByCity(city: string): Promise<Restaurant[]> {
+    return await db.select().from(restaurants).where(eq(restaurants.city, city));
+  }
+
+  async getRestaurantsByState(state: string): Promise<Restaurant[]> {
+    return await db.select().from(restaurants).where(eq(restaurants.state, state));
+  }
+
+  async searchRestaurants(query: string): Promise<Restaurant[]> {
+    // Simple search implementation - can be enhanced with proper full-text search
+    const allRestaurants = await db.select().from(restaurants);
+    const lowercaseQuery = query.toLowerCase();
+    return allRestaurants.filter(restaurant =>
+      restaurant.name.toLowerCase().includes(lowercaseQuery) ||
+      restaurant.city.toLowerCase().includes(lowercaseQuery) ||
+      restaurant.state.toLowerCase().includes(lowercaseQuery) ||
+      restaurant.description?.toLowerCase().includes(lowercaseQuery)
+    );
+  }
+
+  async createRestaurant(insertRestaurant: InsertRestaurant): Promise<Restaurant> {
+    const [restaurant] = await db
+      .insert(restaurants)
+      .values(insertRestaurant)
+      .returning();
+    return restaurant;
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -196,4 +252,4 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
