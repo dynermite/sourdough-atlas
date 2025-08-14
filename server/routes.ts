@@ -107,6 +107,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced scraping for specific city (admin endpoint)
+  app.post("/api/admin/enhanced-scrape", async (req, res) => {
+    try {
+      const { city, state } = req.body;
+      if (!city || !state) {
+        return res.status(400).json({ error: "City and state parameters required" });
+      }
+      
+      const { EnhancedSourdoughScraper } = await import('./enhanced-scraper');
+      const scraper = new EnhancedSourdoughScraper();
+      await scraper.scrapeCity(city, state);
+      
+      res.json({ 
+        message: `Enhanced scraping completed for ${city}, ${state}`,
+        instructions: "Check database for newly added verified sourdough restaurants"
+      });
+    } catch (error) {
+      console.error("Error running enhanced scraper:", error);
+      res.status(500).json({ error: "Failed to run enhanced scraper" });
+    }
+  });
+
   // Seed verified restaurants (admin endpoint)
   app.post("/api/admin/seed-verified", async (_req, res) => {
     try {
