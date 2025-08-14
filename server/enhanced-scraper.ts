@@ -1,377 +1,351 @@
+#!/usr/bin/env tsx
+
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { db } from './db';
-import { restaurants } from '@shared/schema';
+import { restaurants } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 
 interface RestaurantLead {
   name: string;
-  website: string;
-  address?: string;
-  city: string;
-  state: string;
+  address: string;
+  website?: string;
   phone?: string;
+  source: string;
 }
 
-interface SourdoughAnalysis {
-  keywords: string[];
-  isVerified: boolean;
-  description: string;
-}
-
-export class EnhancedSourdoughScraper {
-  private readonly SOURDOUGH_KEYWORDS = [
+export class EnhancedPizzaDiscovery {
+  private readonly sourdoughKeywords = [
     'sourdough',
     'naturally leavened', 
     'wild yeast',
     'fermented dough',
     'starter',
     'long fermentation',
-    'natural fermentation',
-    'levain',
-    'mother dough'
+    'fermented'
   ];
 
-  // Search strategies for finding pizza restaurants
-  private getSearchQueries(city: string, state: string): string[] {
-    return [
-      `"sourdough pizza" ${city} ${state}`,
-      `"naturally leavened pizza" ${city} ${state}`,
-      `"artisan pizza" sourdough ${city} ${state}`,
-      `"wood fired pizza" sourdough ${city} ${state}`,
-      `pizza sourdough crust ${city} ${state}`,
-      `${city} ${state} pizza wild yeast`,
-      `${city} ${state} pizza fermented dough`
+  // Comprehensive search strategies to find ALL pizza restaurants
+  async discoverAllPizzaRestaurants(city: string, state: string): Promise<RestaurantLead[]> {
+    console.log(`🔍 Comprehensive pizza discovery for ${city}, ${state}`);
+    console.log('Using multiple search strategies to find ALL pizza restaurants...');
+    
+    const allLeads: RestaurantLead[] = [];
+    
+    // Strategy 1: Google business directory search
+    const googleSearches = [
+      `pizza restaurants ${city} ${state}`,
+      `pizzeria ${city} ${state}`,
+      `pizza ${city} ${state} site:google.com`,
+      `"${city}" "pizza" OR "pizzeria" OR "pie" restaurant`,
+      `${city} ${state} italian restaurant pizza`,
+      `${city} ${state} wood fired pizza`,
+      `${city} ${state} artisan pizza`,
+      `${city} ${state} neapolitan pizza`
     ];
+    
+    for (const query of googleSearches) {
+      console.log(`  📋 Searching: ${query}`);
+      const leads = await this.searchGoogle(query, city, state);
+      allLeads.push(...leads);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    
+    // Strategy 2: Business directory searches
+    const directorySearches = [
+      `site:yelp.com pizza ${city} ${state}`,
+      `site:zomato.com pizza ${city} ${state}`,
+      `site:foursquare.com pizza ${city} ${state}`,
+      `site:opentable.com pizza ${city} ${state}`,
+      `site:yellowpages.com pizza ${city} ${state}`
+    ];
+    
+    for (const query of directorySearches) {
+      console.log(`  📋 Directory search: ${query}`);
+      const leads = await this.searchGoogle(query, city, state);
+      allLeads.push(...leads);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    
+    // Strategy 3: Specific cuisine searches that might include pizza
+    const cuisineSearches = [
+      `${city} ${state} italian restaurant`,
+      `${city} ${state} mediterranean restaurant`,
+      `${city} ${state} casual dining pizza`,
+      `${city} ${state} family restaurant pizza`
+    ];
+    
+    for (const query of cuisineSearches) {
+      console.log(`  📋 Cuisine search: ${query}`);
+      const leads = await this.searchGoogle(query, city, state);
+      allLeads.push(...leads);
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    
+    const uniqueLeads = this.removeDuplicates(allLeads);
+    console.log(`✅ Found ${uniqueLeads.length} unique restaurant leads from all sources`);
+    
+    return uniqueLeads;
   }
 
-  // Analyze website content for sourdough verification
-  async analyzeSourdoughContent(website: string): Promise<SourdoughAnalysis> {
+  // Enhanced Google search that extracts more restaurant information
+  private async searchGoogle(query: string, city: string, state: string): Promise<RestaurantLead[]> {
+    const leads: RestaurantLead[] = [];
+    
     try {
-      console.log(`Analyzing website: ${website}`);
+      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}&num=50`;
       
-      const response = await axios.get(website, {
-        timeout: 10000,
+      const response = await axios.get(searchUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; SourdoughBot/1.0)'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        timeout: 10000
+      });
+
+      const $ = cheerio.load(response.data);
+      
+      // Extract search results with enhanced parsing
+      $('.g').each((index, element) => {
+        if (index >= 30) return; // Process more results per search
+        
+        try {
+          const $el = $(element);
+          const title = $el.find('h3').text();
+          const snippet = $el.find('.VwiC3b, .s3v9rd, .IsZvec').text();
+          const link = $el.find('a').attr('href');
+          
+          // More inclusive restaurant detection
+          const restaurantIndicators = [
+            'pizza', 'pizzeria', 'restaurant', 'kitchen', 'cafe', 'diner', 
+            'eatery', 'bistro', 'trattoria', 'bar', 'grill', 'house'
+          ];
+          
+          const locationIndicators = [city.toLowerCase(), state.toLowerCase()];
+          
+          const hasRestaurantKeyword = restaurantIndicators.some(keyword => 
+            title.toLowerCase().includes(keyword) || snippet.toLowerCase().includes(keyword)
+          );
+          
+          const hasLocationKeyword = locationIndicators.some(keyword =>
+            title.toLowerCase().includes(keyword) || snippet.toLowerCase().includes(keyword)
+          );
+          
+          if (hasRestaurantKeyword && hasLocationKeyword && link && link.startsWith('http')) {
+            
+            // Clean restaurant name
+            let restaurantName = title
+              .replace(/\|.*$/, '')
+              .replace(/-.*$/, '') 
+              .replace(/\s*\.\.\.$/, '')
+              .trim();
+            
+            // Extract address from snippet if available
+            const addressMatch = snippet.match(/\d+\s+[A-Za-z\s,]+(Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln)[^,]*,?\s*[A-Za-z\s]*\d{5}?/i);
+            const address = addressMatch ? addressMatch[0] : `${city}, ${state}`;
+            
+            if (restaurantName && restaurantName.length > 2) {
+              leads.push({
+                name: restaurantName,
+                address: address,
+                website: link,
+                source: 'Google Search'
+              });
+            }
+          }
+        } catch (error) {
+          // Continue to next result
+        }
+      });
+      
+    } catch (error) {
+      console.log(`    ❌ Search error: ${error.message}`);
+    }
+    
+    return leads;
+  }
+
+  // Remove duplicate leads with better deduplication
+  private removeDuplicates(leads: RestaurantLead[]): RestaurantLead[] {
+    const seen = new Set();
+    return leads.filter(lead => {
+      // Create multiple keys to catch different variations
+      const nameKey = lead.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const websiteKey = lead.website ? new URL(lead.website).hostname : '';
+      const combinedKey = `${nameKey}-${websiteKey}`;
+      
+      if (seen.has(combinedKey) || seen.has(nameKey)) {
+        return false;
+      }
+      seen.add(combinedKey);
+      seen.add(nameKey);
+      return true;
+    });
+  }
+
+  // Enhanced website analysis
+  async analyzeRestaurantForSourdough(lead: RestaurantLead): Promise<{verified: boolean, keywords: string[], description: string}> {
+    console.log(`    🔍 Analyzing ${lead.name}...`);
+    
+    if (!lead.website) {
+      return { verified: false, keywords: [], description: '' };
+    }
+    
+    try {
+      const response = await axios.get(lead.website, {
+        timeout: 8000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
       });
 
       const $ = cheerio.load(response.data);
       
-      // Extract all text content
-      const pageText = $('body').text().toLowerCase();
-      const title = $('title').text().toLowerCase();
-      const metaDescription = $('meta[name="description"]').attr('content')?.toLowerCase() || '';
+      // Remove non-content elements
+      $('script, style, nav, header, footer, .nav, .navigation, .sidebar').remove();
       
-      const allText = `${title} ${metaDescription} ${pageText}`;
+      // Focus on content areas that typically contain menu/description
+      const contentAreas = [
+        'main', '.main', '.content', '.about', '.menu', '.description',
+        '.story', '.our-story', '.food', '.pizza', '.specialty'
+      ].map(selector => $(selector).text()).join(' ');
       
-      const foundKeywords: string[] = [];
+      const fullContent = $('body').text();
+      const combinedContent = (contentAreas + ' ' + fullContent).toLowerCase().replace(/\s+/g, ' ').trim();
       
-      // Check for sourdough keywords
-      for (const keyword of this.SOURDOUGH_KEYWORDS) {
-        if (allText.includes(keyword)) {
-          foundKeywords.push(keyword);
-        }
-      }
-
-      // Extract relevant description
-      let description = '';
+      // Enhanced keyword detection
+      const foundKeywords = this.sourdoughKeywords.filter(keyword => 
+        combinedContent.includes(keyword.toLowerCase())
+      );
+      
       if (foundKeywords.length > 0) {
-        // Try to find a good description paragraph
-        const paragraphs = $('p').toArray();
-        for (const p of paragraphs) {
-          const text = $(p).text();
-          const lowerText = text.toLowerCase();
-          if (this.SOURDOUGH_KEYWORDS.some(keyword => lowerText.includes(keyword))) {
-            if (text.length > 50 && text.length < 300) {
-              description = text.trim();
-              break;
-            }
+        // Extract context around keywords for description
+        let description = '';
+        foundKeywords.forEach(keyword => {
+          const index = combinedContent.indexOf(keyword.toLowerCase());
+          if (index !== -1 && description.length < 250) {
+            const start = Math.max(0, index - 75);
+            const end = Math.min(combinedContent.length, index + 175);
+            const context = combinedContent.substring(start, end).trim();
+            description += context + ' ';
           }
-        }
+        });
         
-        // Fallback to meta description or title
-        if (!description) {
-          description = $('meta[name="description"]').attr('content') || 
-                       $('title').text() || 
-                       `Artisan pizza with ${foundKeywords.join(', ')}`;
-        }
+        console.log(`        ✅ SOURDOUGH VERIFIED: ${foundKeywords.join(', ')}`);
+        return {
+          verified: true,
+          keywords: foundKeywords,
+          description: description.trim().substring(0, 400)
+        };
+      } else {
+        console.log(`        ❌ No sourdough keywords found`);
+        return { verified: false, keywords: [], description: '' };
       }
-
-      return {
-        keywords: foundKeywords,
-        isVerified: foundKeywords.length > 0,
-        description: description.substring(0, 500) // Limit description length
-      };
-
+      
     } catch (error) {
-      console.log(`Failed to analyze ${website}:`, error.message);
-      return {
-        keywords: [],
-        isVerified: false,
-        description: ''
-      };
+      console.log(`        ⚠️  Website analysis failed: ${error.message}`);
+      return { verified: false, keywords: [], description: '' };
     }
   }
 
-  // Discover restaurants using web search approaches
-  async discoverRestaurants(city: string, state: string): Promise<RestaurantLead[]> {
-    const leads: RestaurantLead[] = [];
-    
-    // Comprehensive database of potential sourdough restaurants by city
-    const knownRestaurants = [
-      // Portland, OR
-      {
-        name: "The Turning Peel",
-        website: "https://www.theturningpeel.com/",
-        city: "Portland",
-        state: "OR",
-        address: "6825 SE Foster Rd, Portland, OR 97206",
-        phone: "(503) 546-7335"
-      },
-      {
-        name: "Scottie's Pizza Parlor",
-        website: "https://scottiespizza.com/",
-        city: "Portland", 
-        state: "OR"
-      },
-      {
-        name: "Dove Vivi Pizza",
-        website: "https://dovevivipizza.com/",
-        city: "Portland",
-        state: "OR"
-      },
-      {
-        name: "Via Tribunali",
-        website: "https://www.viatribunali.com/",
-        city: "Portland",
-        state: "OR"
-      },
-      {
-        name: "Nostrana",
-        website: "https://nostrana.com/",
-        city: "Portland",
-        state: "OR"
-      },
-      {
-        name: "Oven and Shaker",
-        website: "https://ovenandshaker.com/",
-        city: "Portland",
-        state: "OR"
-      },
-      {
-        name: "Gabbiano",
-        website: "https://gabbianopizza.com/",
-        city: "Portland",
-        state: "OR"
-      },
-      {
-        name: "Dove Vivi",
-        website: "https://www.dovevivi.com/",
-        city: "Portland",
-        state: "OR"
-      },
-      
-      // San Francisco, CA
-      {
-        name: "Tony's Little Star Pizza",
-        website: "https://www.tonyslittlestar.com/",
-        city: "San Francisco",
-        state: "CA"
-      },
-      {
-        name: "Arizmendi Bakery",
-        website: "https://arizmendibakery.com/",
-        city: "San Francisco",
-        state: "CA"
-      },
-      {
-        name: "Delfina",
-        website: "https://pizzeriadelfina.com/",
-        city: "San Francisco",
-        state: "CA"
-      },
-      {
-        name: "Flour + Water",
-        website: "https://flourandwater.com/",
-        city: "San Francisco",
-        state: "CA"
-      },
-      {
-        name: "Del Popolo",
-        website: "https://www.delpopolosf.com/",
-        city: "San Francisco",
-        state: "CA"
-      },
-      
-      // New York, NY
-      {
-        name: "Roberta's",
-        website: "https://www.robertaspizza.com/",
-        city: "Brooklyn",
-        state: "NY"
-      },
-      {
-        name: "Sullivan Street Bakery",
-        website: "https://sullivanstreetbakery.com/",
-        city: "New York",
-        state: "NY"
-      },
-      {
-        name: "Joe's Pizza",
-        website: "https://www.joespizzanyc.com/",
-        city: "New York",
-        state: "NY"
-      },
-      {
-        name: "Prince Street Pizza",
-        website: "https://www.princestreetpizza.com/",
-        city: "New York",
-        state: "NY"
-      },
-      
-      // Seattle, WA  
-      {
-        name: "Delancey Pizza",
-        website: "https://www.delanceyseattle.com/",
-        city: "Seattle",
-        state: "WA"
-      },
-      {
-        name: "Via Tribunali",
-        website: "https://www.viatribunali.com/",
-        city: "Seattle",
-        state: "WA"
-      },
-      {
-        name: "Serious Pie",
-        website: "https://www.tomdouglas.com/restaurants/serious-pie/",
-        city: "Seattle",
-        state: "WA"
-      },
-      
-      // Chicago, IL
-      {
-        name: "Spacca Napoli",
-        website: "https://www.spaccanapolipizzeria.com/",
-        city: "Chicago",
-        state: "IL"
-      },
-      {
-        name: "Piece Brewery and Pizzeria",
-        website: "https://www.piecechicago.com/",
-        city: "Chicago",
-        state: "IL"
-      },
-      
-      // Austin, TX
-      {
-        name: "Via 313",
-        website: "https://via313.com/",
-        city: "Austin",
-        state: "TX"
-      },
-      {
-        name: "Bufalina",
-        website: "https://www.bufalinaaustintx.com/",
-        city: "Austin",
-        state: "TX"
-      }
-    ];
-
-    // Filter for the requested city/state
-    const cityLeads = knownRestaurants.filter(r => 
-      r.city.toLowerCase() === city.toLowerCase() && 
-      r.state.toLowerCase() === state.toLowerCase()
-    );
-
-    leads.push(...cityLeads);
-    
-    console.log(`Found ${leads.length} restaurant leads for ${city}, ${state}`);
-    return leads;
-  }
-
-  // Add verified sourdough restaurant to database
-  async addVerifiedRestaurant(lead: RestaurantLead, analysis: SourdoughAnalysis): Promise<void> {
+  // Add verified restaurant to database
+  async addVerifiedRestaurant(lead: RestaurantLead, keywords: string[], description: string, city: string, state: string): Promise<boolean> {
     try {
       // Check if restaurant already exists
-      const existing = await db.select()
-        .from(restaurants)
-        .where(eq(restaurants.website, lead.website));
+      const existing = await db.select().from(restaurants)
+        .where(eq(restaurants.name, lead.name));
       
       if (existing.length > 0) {
-        console.log(`Restaurant ${lead.name} already exists, skipping`);
-        return;
+        console.log(`        🔄 ${lead.name} already exists, skipping`);
+        return false;
       }
-
-      // Extract zip code from address if available
-      const zipCode = lead.address?.match(/\d{5}(-\d{4})?/)?.[0] || '';
 
       const restaurantData = {
         name: lead.name,
-        address: lead.address || `${lead.city}, ${lead.state}`,
-        city: lead.city,
-        state: lead.state,
-        zipCode,
+        address: lead.address,
+        city: city,
+        state: state,
+        zipCode: lead.address.match(/\d{5}/)?.[0] || '',
         phone: lead.phone || '',
-        website: lead.website,
-        description: analysis.description,
-        sourdoughVerified: analysis.isVerified ? 1 : 0,
-        sourdoughKeywords: analysis.keywords,
+        website: lead.website || '',
+        description: description || `Verified sourdough keywords: ${keywords.join(', ')}`,
+        sourdoughVerified: 1,
+        sourdoughKeywords: keywords,
         rating: 0,
         reviewCount: 0,
-        latitude: 0, // Would need geocoding for exact coordinates
-        longitude: 0,
+        latitude: 45.5152, // Default coordinates
+        longitude: -122.6784,
         imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-        reviews: analysis.isVerified ? [`Verified sourdough keywords found: ${analysis.keywords.join(', ')}`] : []
+        reviews: [`Verified sourdough restaurant: ${keywords.join(', ')}`]
       };
 
       await db.insert(restaurants).values(restaurantData);
-      console.log(`✅ Added ${lead.name} - Sourdough verified: ${analysis.isVerified}`);
+      console.log(`        ✅ ADDED TO DATABASE: ${lead.name}`);
+      console.log(`           Keywords: ${keywords.join(', ')}`);
+      
+      return true;
       
     } catch (error) {
-      console.error(`Failed to add restaurant ${lead.name}:`, error);
+      console.log(`        ❌ Failed to add ${lead.name}: ${error.message}`);
+      return false;
     }
   }
 
-  // Main scraping function for a city
-  async scrapeCity(city: string, state: string): Promise<void> {
-    console.log(`\n🔍 Enhanced scraping for ${city}, ${state}...`);
+  // Main comprehensive discovery process
+  async runComprehensiveDiscovery(city: string, state: string): Promise<number> {
+    console.log('🚀 Starting comprehensive pizza restaurant discovery...');
     
-    try {
-      // Discover restaurants
-      const leads = await this.discoverRestaurants(city, state);
-      
-      if (leads.length === 0) {
-        console.log(`No restaurant leads found for ${city}, ${state}`);
-        return;
-      }
-
-      // Analyze each restaurant website
-      for (const lead of leads) {
-        console.log(`\n📍 Analyzing ${lead.name}...`);
-        const analysis = await this.analyzeSourdoughContent(lead.website);
-        
-        if (analysis.isVerified) {
-          console.log(`✅ ${lead.name}: Found sourdough keywords: ${analysis.keywords.join(', ')}`);
-          await this.addVerifiedRestaurant(lead, analysis);
-        } else {
-          console.log(`❌ ${lead.name}: No sourdough keywords found`);
-        }
-        
-        // Add delay between requests
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      
-    } catch (error) {
-      console.error(`Error scraping ${city}, ${state}:`, error);
+    let totalAdded = 0;
+    
+    // Step 1: Discover all pizza restaurants
+    const allLeads = await this.discoverAllPizzaRestaurants(city, state);
+    
+    if (allLeads.length === 0) {
+      console.log('❌ No restaurant leads found');
+      return 0;
     }
+    
+    console.log(`\n🔍 Analyzing ${allLeads.length} restaurants for sourdough verification...`);
+    
+    // Step 2: Analyze each restaurant
+    for (let i = 0; i < Math.min(allLeads.length, 40); i++) { // Analyze up to 40 restaurants
+      const lead = allLeads[i];
+      console.log(`\n[${i + 1}/${Math.min(allLeads.length, 40)}] 🍕 ${lead.name}`);
+      console.log(`    📍 ${lead.address}`);
+      console.log(`    🌐 ${lead.website || 'No website'}`);
+      
+      const verification = await this.analyzeRestaurantForSourdough(lead);
+      
+      if (verification.verified) {
+        const added = await this.addVerifiedRestaurant(lead, verification.keywords, verification.description, city, state);
+        if (added) {
+          totalAdded++;
+        }
+      }
+      
+      // Rate limiting
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    console.log(`\n📊 COMPREHENSIVE DISCOVERY RESULTS:`);
+    console.log(`🔍 Total restaurant leads found: ${allLeads.length}`);
+    console.log(`🍕 Restaurants analyzed: ${Math.min(allLeads.length, 40)}`);
+    console.log(`✅ Verified sourdough restaurants added: ${totalAdded}`);
+    console.log(`📈 Sourdough success rate: ${((totalAdded / Math.min(allLeads.length, 40)) * 100).toFixed(1)}%`);
+    
+    return totalAdded;
   }
 }
 
-// Test function for Portland specifically  
-export async function testPortlandScraping() {
-  const scraper = new EnhancedSourdoughScraper();
-  await scraper.scrapeCity('Portland', 'OR');
+// Main execution
+async function main() {
+  const scraper = new EnhancedPizzaDiscovery();
+  
+  console.log('🎯 Running enhanced comprehensive pizza discovery for Portland...');
+  console.log('This uses multiple search strategies to find ALL pizza restaurants');
+  
+  const addedCount = await scraper.runComprehensiveDiscovery('Portland', 'Oregon');
+  
+  console.log(`\n🎉 Enhanced discovery complete! Added ${addedCount} verified sourdough restaurants`);
 }
+
+main().catch(console.error);

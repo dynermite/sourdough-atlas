@@ -52,6 +52,13 @@ The application features a comprehensive restaurant discovery system focused exc
 - **Dual Source Analysis**: Combines Google Business profile descriptions with restaurant website content
 - **Quality Assurance**: Only adds restaurants with verified sourdough claims from official sources
 
+#### 4. Comprehensive Pizza Scraper (`comprehensive-pizza-scraper.ts`)
+- **Google Maps Category Search**: Uses Google Maps "Pizza" category filter to find ALL pizza restaurants
+- **Complete Coverage**: Scrolls through all results, not limited to top 20 restaurants
+- **Name-Independent Discovery**: Finds restaurants without "pizza" in the name using category filtering
+- **Dual Verification**: Analyzes both Google Business profiles AND restaurant websites for sourdough keywords
+- **Enhanced Data Collection**: Extracts phone numbers, websites, and detailed descriptions
+
 #### 4. Sourdough Verification Process
 All scrapers use strict restaurant-controlled content verification:
 - **Keywords**: "sourdough", "naturally leavened", "wild yeast", "fermented dough", "starter", "long fermentation"
