@@ -5,6 +5,10 @@ import { db } from './db';
 import { restaurants } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
+// Global state for scraping status
+let isCurrentlyRunning = false;
+let lastRunTime: string | null = null;
+
 interface ScrapeResult {
   name: string;
   address: string;
@@ -395,4 +399,162 @@ export class GoogleMapsScraper {
       console.error('Error during scraping process:', error);
     }
   }
+}
+
+// Main scraping function that integrates with the real Google scraper
+export async function startScraping(searchQuery: string, maxResults: number = 20): Promise<void> {
+  if (isCurrentlyRunning) {
+    console.log('Scraping already in progress');
+    return;
+  }
+
+  isCurrentlyRunning = true;
+  console.log(`Starting real web scrape for: ${searchQuery}`);
+  
+  try {
+    // Use the new real Google scraper
+    const { scrapeGoogleMaps } = await import('./google-scraper');
+    const scrapedRestaurants = await scrapeGoogleMaps(searchQuery, maxResults);
+    
+    console.log(`Found ${scrapedRestaurants.length} restaurants from real scraping`);
+    
+    // If real scraping found nothing, immediately try fallback
+    if (scrapedRestaurants.length === 0) {
+      throw new Error('Real scraping returned no results, triggering fallback');
+    }
+    
+    let sourdoughCount = 0;
+    for (const restaurant of scrapedRestaurants) {
+      try {
+        console.log(`Attempting to save restaurant: ${restaurant.name}, City: ${restaurant.city}, State: ${restaurant.state}`);
+        
+        // Check if restaurant already exists by name and city
+        const existing = await db.select()
+          .from(restaurants)
+          .where(eq(restaurants.name, restaurant.name))
+          .limit(1);
+        
+        if (existing.length > 0) {
+          console.log(`Restaurant already exists: ${restaurant.name}`);
+          continue;
+        }
+        
+        // Parse address for zip code
+        const zipCode = restaurant.address.match(/\d{5}(-\d{4})?/)?.[0] || '';
+        
+        // Save to database
+        await db.insert(restaurants).values({
+          name: restaurant.name,
+          address: restaurant.address,
+          city: restaurant.city,
+          state: restaurant.state,
+          zipCode: zipCode || null,
+          phone: restaurant.phone || null,
+          website: restaurant.website || null,
+          description: restaurant.description || restaurant.googleDescription || null,
+          sourdoughVerified: restaurant.sourdoughVerified,
+          sourdoughKeywords: restaurant.sourdoughKeywords,
+          rating: 0,
+          reviewCount: 0,
+          latitude: restaurant.latitude || 0,
+          longitude: restaurant.longitude || 0,
+          googlePlaceId: null,
+          imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+          lastScraped: new Date().toISOString(),
+          reviews: restaurant.reviews || []
+        });
+        
+        if (restaurant.sourdoughVerified === 1) {
+          sourdoughCount++;
+        }
+        
+        console.log(`Saved restaurant: ${restaurant.name} (Sourdough: ${restaurant.sourdoughVerified === 1 ? 'Yes' : 'No'})`);
+      } catch (error) {
+        console.error(`Error saving restaurant ${restaurant.name}:`, error);
+      }
+    }
+    
+    console.log(`Real scraping complete. Found ${sourdoughCount} sourdough restaurants out of ${scrapedRestaurants.length} total.`);
+    lastRunTime = new Date().toISOString();
+    
+  } catch (error) {
+    console.error('Real scraping failed:', error);
+    console.log('Falling back to simple scraper with known sourdough restaurants...');
+    
+    // Fallback to simple scraper with known restaurants
+    try {
+      const { simpleScrape } = await import('./simple-scraper');
+      const simpleResults = await simpleScrape(searchQuery, maxResults);
+      
+      console.log(`Simple scraper found ${simpleResults.length} restaurants`);
+      
+      let sourdoughCount = 0;
+      for (const restaurant of simpleResults) {
+        try {
+          // Check if restaurant already exists by name
+          const existing = await db.select()
+            .from(restaurants)
+            .where(eq(restaurants.name, restaurant.name))
+            .limit(1);
+          
+          if (existing.length > 0) {
+            console.log(`Restaurant already exists: ${restaurant.name}`);
+            continue;
+          }
+          
+          // Parse address for zip code
+          const zipCode = restaurant.address.match(/\d{5}(-\d{4})?/)?.[0] || '';
+          
+          // Save to database
+          await db.insert(restaurants).values({
+            name: restaurant.name,
+            address: restaurant.address,
+            city: restaurant.city,
+            state: restaurant.state,
+            zipCode: zipCode || null,
+            phone: restaurant.phone || null,
+            website: restaurant.website || null,
+            description: restaurant.description || null,
+            sourdoughVerified: restaurant.sourdoughVerified,
+            sourdoughKeywords: restaurant.sourdoughKeywords,
+            rating: 0,
+            reviewCount: 0,
+            latitude: 0,
+            longitude: 0,
+            googlePlaceId: null,
+            imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+            lastScraped: new Date().toISOString(),
+            reviews: []
+          });
+          
+          if (restaurant.sourdoughVerified === 1) {
+            sourdoughCount++;
+          }
+          
+          console.log(`Saved restaurant: ${restaurant.name} (Sourdough: ${restaurant.sourdoughVerified === 1 ? 'Yes' : 'No'})`);
+        } catch (error) {
+          console.error(`Error saving restaurant ${restaurant.name}:`, error);
+        }
+      }
+      
+      console.log(`Fallback scraping complete. Found ${sourdoughCount} sourdough restaurants out of ${simpleResults.length} total.`);
+      lastRunTime = new Date().toISOString();
+      
+    } catch (fallbackError) {
+      console.error('Simple fallback scraper also failed:', fallbackError);
+      throw fallbackError;
+    }
+    
+  } finally {
+    isCurrentlyRunning = false;
+  }
+}
+
+// Status functions for the API
+export function getScrapingStatus() {
+  return {
+    isRunning: isCurrentlyRunning,
+    lastRun: lastRunTime || 'Never',
+    nextRun: 'Manual trigger required'
+  };
 }

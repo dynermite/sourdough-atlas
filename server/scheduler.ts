@@ -1,13 +1,9 @@
 import * as cron from 'node-cron';
-import { GoogleMapsScraper } from './scraper';
+import { startScraping, getScrapingStatus } from './scraper';
 
 export class ScrapingScheduler {
-  private scraper: GoogleMapsScraper;
   private isRunning: boolean = false;
-
-  constructor() {
-    this.scraper = new GoogleMapsScraper();
-  }
+  private lastRunTime: string | null = null;
 
   startScheduledScraping() {
     // Run every Sunday at 3 AM to scrape new restaurants
@@ -39,13 +35,14 @@ export class ScrapingScheduler {
 
         for (const city of citiesToScrape) {
           console.log(`Scraping ${city}...`);
-          await this.scraper.scrapeAndSaveRestaurants(city, 15);
+          await startScraping(city, 15);
           
           // Wait 30 seconds between cities to be respectful
           await new Promise(resolve => setTimeout(resolve, 30000));
         }
 
         console.log('Scheduled scraping completed successfully');
+        this.lastRunTime = new Date().toISOString();
       } catch (error) {
         console.error('Error during scheduled scraping:', error);
       } finally {
@@ -63,7 +60,8 @@ export class ScrapingScheduler {
 
     this.isRunning = true;
     try {
-      await this.scraper.scrapeAndSaveRestaurants(searchQuery, maxResults);
+      await startScraping(searchQuery, maxResults);
+      this.lastRunTime = new Date().toISOString();
     } finally {
       this.isRunning = false;
     }
@@ -72,7 +70,7 @@ export class ScrapingScheduler {
   getStatus() {
     return {
       isRunning: this.isRunning,
-      lastRun: 'Never', // TODO: Track last run timestamp
+      lastRun: this.lastRunTime || 'Never',
       nextRun: 'Sundays at 3 AM'
     };
   }
