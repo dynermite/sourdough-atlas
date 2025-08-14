@@ -159,6 +159,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Business scraping (admin endpoint) 
+  app.post("/api/admin/google-business", async (req, res) => {
+    try {
+      const { city, state } = req.body;
+      if (!city || !state) {
+        return res.status(400).json({ error: "City and state parameters required" });
+      }
+      
+      // Run Google Business scraping in background
+      setTimeout(async () => {
+        try {
+          const { GoogleBusinessScraper } = await import('./google-business-scraper');
+          const scraper = new GoogleBusinessScraper();
+          await scraper.scrapeGoogleBusinesses(city, state);
+        } catch (error) {
+          console.error("Google Business scraping failed:", error);
+        }
+      }, 100);
+      
+      res.json({ 
+        message: `Google Business scraping started for ${city}, ${state}`,
+        instructions: "Scraper analyzing restaurant websites and Google Business profiles. Check console logs for progress.",
+        focus: "Restaurant-owned content only (no third-party blogs)"
+      });
+    } catch (error) {
+      console.error("Error starting Google Business scraping:", error);
+      res.status(500).json({ error: "Failed to start Google Business scraping" });
+    }
+  });
+
   // Seed verified restaurants (admin endpoint)
   app.post("/api/admin/seed-verified", async (_req, res) => {
     try {
