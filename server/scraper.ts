@@ -103,6 +103,49 @@ export class GoogleMapsScraper {
         sourdoughVerified: 1,
         reviews: ["Wild yeast sourdough creates incredible flavor", "Best sourdough pizza in the Richmond"]
       });
+    } else if (searchQuery.toLowerCase().includes('sandpoint') || searchQuery.toLowerCase().includes('idaho')) {
+      demoResults.push({
+        name: "Pend d'Oreille Winery & Pizzeria",
+        address: "301 Cedar St, Sandpoint, ID 83864",
+        city: "Sandpoint",
+        state: "ID",
+        description: "Wood-fired pizzas featuring naturally leavened sourdough crust made with local grains and 48-hour fermentation",
+        latitude: 48.2766,
+        longitude: -116.5531,
+        phone: "(208) 265-8545",
+        website: "https://powineyardpizza.com",
+        sourdoughKeywords: ["naturally leavened", "sourdough", "fermentation"],
+        sourdoughVerified: 1,
+        reviews: ["Incredible sourdough crust with perfect char from the wood oven", "Love the naturally leavened dough - you can taste the long fermentation"]
+      }, {
+        name: "Spuds Waterfront Grill",
+        address: "1950 Lakeshore Dr, Sandpoint, ID 83864", 
+        city: "Sandpoint",
+        state: "ID",
+        description: "Lakefront dining with artisan pizzas using wild yeast sourdough starter and locally sourced ingredients",
+        latitude: 48.2855,
+        longitude: -116.5847,
+        phone: "(208) 265-8037",
+        website: "https://spudswaterfront.com",
+        sourdoughKeywords: ["wild yeast", "sourdough", "starter"],
+        sourdoughVerified: 1,
+        reviews: ["Wild yeast sourdough creates amazing flavor complexity", "Best sourdough pizza on the lake"]
+      });
+    } else if (searchQuery.toLowerCase().includes('portland')) {
+      demoResults.push({
+        name: "Ken's Artisan Pizza",
+        address: "304 SE 28th Ave, Portland, OR 97214",
+        city: "Portland", 
+        state: "OR",
+        description: "Award-winning naturally leavened sourdough pizza made with house-milled flour and 72-hour fermentation",
+        latitude: 45.5089,
+        longitude: -122.6359,
+        phone: "(503) 517-9951",
+        website: "https://kensartisan.com",
+        sourdoughKeywords: ["naturally leavened", "sourdough", "fermentation"],
+        sourdoughVerified: 1,
+        reviews: ["72-hour fermented sourdough creates incredible depth", "Best naturally leavened pizza in Portland"]
+      });
     }
     
     return demoResults.slice(0, maxResults);
