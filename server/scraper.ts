@@ -105,31 +105,18 @@ export class GoogleMapsScraper {
       });
     } else if (searchQuery.toLowerCase().includes('sandpoint') || searchQuery.toLowerCase().includes('idaho')) {
       demoResults.push({
-        name: "Pend d'Oreille Winery & Pizzeria",
-        address: "301 Cedar St, Sandpoint, ID 83864",
+        name: "The Forge Artisan Pizza",
+        address: "306 Pine Street, Sandpoint, ID 83864",
         city: "Sandpoint",
         state: "ID",
-        description: "Wood-fired pizzas featuring naturally leavened sourdough crust made with local grains and 48-hour fermentation",
+        description: "Our pizzas and breads are all naturally leavened 'sourdough'. We import an amazing flour from a small, family-run mill between Rome and Naples, Italy for our wood-fired pizza.",
         latitude: 48.2766,
         longitude: -116.5531,
-        phone: "(208) 265-8545",
-        website: "https://powineyardpizza.com",
-        sourdoughKeywords: ["naturally leavened", "sourdough", "fermentation"],
+        phone: "(208) 252-9433",
+        website: "https://forgeartisanpizza.com",
+        sourdoughKeywords: ["naturally leavened", "sourdough"],
         sourdoughVerified: 1,
-        reviews: ["Incredible sourdough crust with perfect char from the wood oven", "Love the naturally leavened dough - you can taste the long fermentation"]
-      }, {
-        name: "Spuds Waterfront Grill",
-        address: "1950 Lakeshore Dr, Sandpoint, ID 83864", 
-        city: "Sandpoint",
-        state: "ID",
-        description: "Lakefront dining with artisan pizzas using wild yeast sourdough starter and locally sourced ingredients",
-        latitude: 48.2855,
-        longitude: -116.5847,
-        phone: "(208) 265-8037",
-        website: "https://spudswaterfront.com",
-        sourdoughKeywords: ["wild yeast", "sourdough", "starter"],
-        sourdoughVerified: 1,
-        reviews: ["Wild yeast sourdough creates amazing flavor complexity", "Best sourdough pizza on the lake"]
+        reviews: ["Authentic naturally leavened sourdough pizza", "Wood-fired Neapolitan pizza with imported Italian flour"]
       });
     } else if (searchQuery.toLowerCase().includes('portland')) {
       demoResults.push({
