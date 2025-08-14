@@ -452,9 +452,15 @@ export class GoogleBusinessScraper {
     };
   }
 
-  // Add verified business to database
+  // Add ONLY verified sourdough businesses to database
   async addVerifiedBusiness(business: BusinessListing, analysis: SourdoughAnalysis, city: string, state: string): Promise<boolean> {
     try {
+      // ONLY add businesses that are verified as sourdough
+      if (!analysis.isVerified) {
+        console.log(`        ❌ ${business.name}: No sourdough found, not adding to directory`);
+        return false;
+      }
+
       // Check if business already exists
       if (business.website) {
         const existing = await db.select().from(restaurants).where(eq(restaurants.website, business.website));
@@ -472,23 +478,22 @@ export class GoogleBusinessScraper {
         zipCode: business.address?.match(/\d{5}/)?.[0] || '',
         phone: business.phone || '',
         website: business.website || '',
-        description: analysis.description || `Pizza restaurant discovered through Google Business search`,
-        sourdoughVerified: analysis.isVerified ? 1 : 0,
+        description: analysis.description,
+        sourdoughVerified: 1, // Always 1 since we only add verified restaurants
         sourdoughKeywords: analysis.keywords,
         rating: 0,
         reviewCount: 0,
         latitude: 0,
         longitude: 0,
         imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-        reviews: analysis.isVerified ? [analysis.description] : []
+        reviews: [analysis.description]
       };
 
       await db.insert(restaurants).values(restaurantData);
       
-      const status = analysis.isVerified ? '✅ VERIFIED' : '❌ No sourdough';
-      console.log(`        ${status}: ${business.name} (${Math.round(analysis.confidence * 100)}%)`);
+      console.log(`        ✅ VERIFIED SOURDOUGH ADDED: ${business.name} (${Math.round(analysis.confidence * 100)}%)`);
       
-      return analysis.isVerified;
+      return true;
       
     } catch (error) {
       console.log(`        ❌ Failed to add ${business.name}:`, error.message);

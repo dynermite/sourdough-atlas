@@ -430,9 +430,15 @@ export class ReliableRestaurantScraper {
     };
   }
 
-  // Phase 3: Add verified restaurant to database
+  // Phase 3: Add ONLY verified sourdough restaurants to database
   async addVerifiedRestaurant(restaurant: RestaurantListing, verification: SourdoughVerification, city: string, state: string): Promise<boolean> {
     try {
+      // ONLY add restaurants that are verified as sourdough
+      if (!verification.isVerified) {
+        console.log(`        ❌ ${restaurant.name}: No sourdough found, not adding to directory`);
+        return false;
+      }
+
       // Check if restaurant already exists
       const existing = await db.select().from(restaurants)
         .where(eq(restaurants.name, restaurant.name));
@@ -450,24 +456,23 @@ export class ReliableRestaurantScraper {
         zipCode: restaurant.address?.match(/\d{5}/)?.[0] || '',
         phone: restaurant.phone || '',
         website: restaurant.website || '',
-        description: verification.description || restaurant.description || `Pizza restaurant discovered through reliable web sources`,
-        sourdoughVerified: verification.isVerified ? 1 : 0,
+        description: verification.description,
+        sourdoughVerified: 1, // Always 1 since we only add verified restaurants
         sourdoughKeywords: verification.keywords,
         rating: 0,
         reviewCount: 0,
         latitude: 0,
         longitude: 0,
         imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
-        reviews: verification.isVerified ? [verification.description] : []
+        reviews: [verification.description]
       };
 
       await db.insert(restaurants).values(restaurantData);
       
-      const status = verification.isVerified ? '✅ VERIFIED SOURDOUGH' : '➕ Added (no sourdough)';
-      const confidenceStr = verification.isVerified ? ` (${Math.round(verification.confidence * 100)}%)` : '';
-      console.log(`        ${status}: ${restaurant.name}${confidenceStr}`);
+      const confidenceStr = ` (${Math.round(verification.confidence * 100)}%)`;
+      console.log(`        ✅ VERIFIED SOURDOUGH ADDED: ${restaurant.name}${confidenceStr}`);
       
-      return verification.isVerified;
+      return true;
       
     } catch (error) {
       console.log(`        ❌ Failed to add ${restaurant.name}: ${error.message}`);
