@@ -32,31 +32,32 @@ The server follows a RESTful API pattern built with **Express.js**:
 - **Development Integration**: Vite middleware integration for seamless development experience
 
 ### Advanced Web Scraping System
-The application features a comprehensive multi-layer scraping system for discovering authentic sourdough pizza restaurants:
+The application features a comprehensive restaurant discovery system focused exclusively on restaurant-controlled content:
 
-#### 1. Web Discovery Scraper (`web-discovery-scraper.ts`)
-- **Comprehensive Restaurant Discovery**: Searches multiple web sources (DuckDuckGo, restaurant directories, food blogs) to discover ALL pizza restaurants in a city
-- **Content Analysis**: Analyzes each discovered restaurant's website for sourdough keywords ("sourdough", "naturally leavened", "wild yeast", etc.)
-- **Intelligence**: Successfully discovers 60+ pizza restaurants per city and verifies authentic sourdough claims
-- **Real Results**: Found and verified The Turning Peel and other Portland restaurants missed by manual searches
+#### 1. Google Maps Scraper (`google-maps-scraper.ts`)
+- **Google Maps Integration**: Uses Puppeteer to find ALL pizza restaurants from Google Maps search results
+- **Business Profile Analysis**: Extracts and analyzes Google Business profile descriptions for sourdough keywords
+- **Restaurant Website Analysis**: Analyzes each restaurant's own website for authentic sourdough claims
+- **Comprehensive Coverage**: Designed to find every pizza restaurant in a city and verify sourdough through official sources only
 
-#### 2. Restaurant-Focused Scraper (`restaurant-focused-scraper.ts`)
-- **Food Guide Extraction**: Parses high-quality local food guides (Eater, OregonLive, Travel Portland) to extract restaurant websites
-- **Direct Website Analysis**: Analyzes actual restaurant websites rather than review platforms
-- **Portland Success**: Successfully extracted 323 restaurant websites from Portland food guides
-- **Verification**: Confirms sourdough claims through direct website content analysis
+#### 2. Reliable Restaurant Scraper (`reliable-restaurant-scraper.ts`)
+- **Business Directory Discovery**: Searches business directories and local listings for pizza restaurants
+- **Pattern-Based Discovery**: Tests common restaurant website naming patterns (e.g., cityname + pizza.com)
+- **Restaurant-Only Content**: Analyzes only restaurant websites and Google Business profiles, never blogs or reviews
+- **Portland Success**: Discovered 15+ authentic Portland pizza restaurants including Portland House of Pizza, Antonio's Flying Pizza, and 48 North Pizzeria
 
-#### 3. Enhanced Scraper (`enhanced-scraper.ts`)
-- **Known Restaurant Database**: Maintains curated lists of potential sourdough restaurants across major cities
-- **Website Content Analysis**: Deep analysis of restaurant websites for sourdough verification
-- **Multi-City Support**: Includes restaurant leads for Portland, San Francisco, New York, Seattle, Chicago, and Austin
+#### 3. Google Business Scraper (`google-business-scraper.ts`)
+- **Targeted Business Search**: Finds pizza restaurants through targeted Google Business searches
+- **Website Verification**: Analyzes discovered restaurant websites for sourdough keywords
+- **Dual Source Analysis**: Combines Google Business profile descriptions with restaurant website content
+- **Quality Assurance**: Only adds restaurants with verified sourdough claims from official sources
 
-#### 4. Verification Process
-All scrapers use consistent sourdough verification:
+#### 4. Sourdough Verification Process
+All scrapers use strict restaurant-controlled content verification:
 - **Keywords**: "sourdough", "naturally leavened", "wild yeast", "fermented dough", "starter", "long fermentation"
-- **Confidence Scoring**: Weighted scoring based on keyword frequency and context
-- **Content Sources**: Analyzes website titles, meta descriptions, body text, and menu sections
-- **Quality Control**: Only adds restaurants with verified sourdough claims to database
+- **Sources**: Only restaurant websites and Google Business profiles (never blogs, reviews, or third-party content)
+- **Confidence Scoring**: Weighted scoring based on keyword frequency and context from official sources
+- **Authenticity**: Ensures all sourdough claims come directly from restaurants themselves
 
 ### Data Storage Solutions
 The application uses a **PostgreSQL** database with Drizzle ORM:

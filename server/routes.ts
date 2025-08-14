@@ -189,6 +189,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Maps comprehensive scraping (admin endpoint)
+  app.post("/api/admin/google-maps", async (req, res) => {
+    try {
+      const { city, state } = req.body;
+      if (!city || !state) {
+        return res.status(400).json({ error: "City and state parameters required" });
+      }
+      
+      // Run comprehensive Google Maps scraping in background
+      setTimeout(async () => {
+        try {
+          const { GoogleMapsScraper } = await import('./google-maps-scraper');
+          const scraper = new GoogleMapsScraper();
+          await scraper.scrapeGoogleMapsRestaurants(city, state);
+        } catch (error) {
+          console.error("Google Maps scraping failed:", error);
+        }
+      }, 100);
+      
+      res.json({ 
+        message: `Comprehensive Google Maps scraping started for ${city}, ${state}`,
+        instructions: "This will take significant time. Finding ALL pizza restaurants from Google Maps, then analyzing their Google Business profiles and websites for sourdough keywords.",
+        process: "1) Find all pizza restaurants in Google Maps → 2) Analyze Google Business descriptions → 3) Analyze restaurant websites",
+        expectedDuration: "15-30 minutes for thorough analysis"
+      });
+    } catch (error) {
+      console.error("Error starting Google Maps scraping:", error);
+      res.status(500).json({ error: "Failed to start Google Maps scraping" });
+    }
+  });
+
+  // Reliable restaurant discovery (admin endpoint)
+  app.post("/api/admin/reliable-scraper", async (req, res) => {
+    try {
+      const { city, state } = req.body;
+      if (!city || !state) {
+        return res.status(400).json({ error: "City and state parameters required" });
+      }
+      
+      // Run reliable restaurant scraping in background
+      setTimeout(async () => {
+        try {
+          const { ReliableRestaurantScraper } = await import('./reliable-restaurant-scraper');
+          const scraper = new ReliableRestaurantScraper();
+          await scraper.scrapeReliableRestaurants(city, state);
+        } catch (error) {
+          console.error("Reliable restaurant scraping failed:", error);
+        }
+      }, 100);
+      
+      res.json({ 
+        message: `Reliable restaurant discovery started for ${city}, ${state}`,
+        instructions: "Discovering pizza restaurants through business directories and analyzing their websites for sourdough keywords.",
+        focus: "Restaurant-controlled content only (no blogs, reviews, or third-party sources)",
+        process: "1) Find pizza restaurants through business directories → 2) Test common restaurant website patterns → 3) Analyze each restaurant's website for sourdough keywords",
+        expectedDuration: "10-15 minutes for thorough analysis"
+      });
+    } catch (error) {
+      console.error("Error starting reliable restaurant scraping:", error);
+      res.status(500).json({ error: "Failed to start reliable restaurant scraping" });
+    }
+  });
+
   // Seed verified restaurants (admin endpoint)
   app.post("/api/admin/seed-verified", async (_req, res) => {
     try {
