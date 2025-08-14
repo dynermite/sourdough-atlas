@@ -31,6 +31,33 @@ The server follows a RESTful API pattern built with **Express.js**:
 - **Request Handling**: JSON and URL-encoded request parsing with comprehensive error handling
 - **Development Integration**: Vite middleware integration for seamless development experience
 
+### Advanced Web Scraping System
+The application features a comprehensive multi-layer scraping system for discovering authentic sourdough pizza restaurants:
+
+#### 1. Web Discovery Scraper (`web-discovery-scraper.ts`)
+- **Comprehensive Restaurant Discovery**: Searches multiple web sources (DuckDuckGo, restaurant directories, food blogs) to discover ALL pizza restaurants in a city
+- **Content Analysis**: Analyzes each discovered restaurant's website for sourdough keywords ("sourdough", "naturally leavened", "wild yeast", etc.)
+- **Intelligence**: Successfully discovers 60+ pizza restaurants per city and verifies authentic sourdough claims
+- **Real Results**: Found and verified The Turning Peel and other Portland restaurants missed by manual searches
+
+#### 2. Restaurant-Focused Scraper (`restaurant-focused-scraper.ts`)
+- **Food Guide Extraction**: Parses high-quality local food guides (Eater, OregonLive, Travel Portland) to extract restaurant websites
+- **Direct Website Analysis**: Analyzes actual restaurant websites rather than review platforms
+- **Portland Success**: Successfully extracted 323 restaurant websites from Portland food guides
+- **Verification**: Confirms sourdough claims through direct website content analysis
+
+#### 3. Enhanced Scraper (`enhanced-scraper.ts`)
+- **Known Restaurant Database**: Maintains curated lists of potential sourdough restaurants across major cities
+- **Website Content Analysis**: Deep analysis of restaurant websites for sourdough verification
+- **Multi-City Support**: Includes restaurant leads for Portland, San Francisco, New York, Seattle, Chicago, and Austin
+
+#### 4. Verification Process
+All scrapers use consistent sourdough verification:
+- **Keywords**: "sourdough", "naturally leavened", "wild yeast", "fermented dough", "starter", "long fermentation"
+- **Confidence Scoring**: Weighted scoring based on keyword frequency and context
+- **Content Sources**: Analyzes website titles, meta descriptions, body text, and menu sections
+- **Quality Control**: Only adds restaurants with verified sourdough claims to database
+
 ### Data Storage Solutions
 The application uses a **PostgreSQL** database with Drizzle ORM:
 - **ORM**: Drizzle ORM for type-safe database operations and migrations

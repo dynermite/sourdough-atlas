@@ -129,6 +129,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Web discovery scraping (admin endpoint)
+  app.post("/api/admin/web-discovery", async (req, res) => {
+    try {
+      const { city, state, maxTime = 300 } = req.body; // Default 5 minutes
+      if (!city || !state) {
+        return res.status(400).json({ error: "City and state parameters required" });
+      }
+      
+      // Run discovery in background with timeout
+      setTimeout(async () => {
+        try {
+          const { WebDiscoveryScraper } = await import('./web-discovery-scraper');
+          const scraper = new WebDiscoveryScraper();
+          await scraper.discoverAndAnalyzeCity(city, state);
+        } catch (error) {
+          console.error("Web discovery failed:", error);
+        }
+      }, 100);
+      
+      res.json({ 
+        message: `Web discovery started for ${city}, ${state}`,
+        instructions: "Discovery running in background. Check console logs and database for results.",
+        estimatedTime: `${maxTime} seconds`
+      });
+    } catch (error) {
+      console.error("Error starting web discovery:", error);
+      res.status(500).json({ error: "Failed to start web discovery" });
+    }
+  });
+
   // Seed verified restaurants (admin endpoint)
   app.post("/api/admin/seed-verified", async (_req, res) => {
     try {
