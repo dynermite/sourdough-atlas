@@ -57,15 +57,15 @@ export class OutscraperSourdoughDiscovery {
     try {
       console.log('Fetching ALL pizza restaurants via Outscraper API...');
       
-      const response = await axios.post('https://api.outscraper.com/maps/search-v2', {
-        query: `pizza restaurants ${city} ${state}`,
-        limit: 500, // Get up to 500 results
-        language: 'en',
-        region: 'US'
-      }, {
+      const response = await axios.get('https://api.app.outscraper.com/maps/search-v2', {
+        params: {
+          query: `pizza restaurants ${city} ${state}`,
+          limit: 100, // Start with 100 results per city
+          async: false,
+          fields: 'name,full_address,site,type,description,category,rating,reviews,working_hours,business_status'
+        },
         headers: {
-          'X-API-KEY': apiKey,
-          'Content-Type': 'application/json'
+          'X-API-KEY': apiKey
         },
         timeout: 30000
       });
