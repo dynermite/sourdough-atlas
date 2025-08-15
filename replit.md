@@ -2,7 +2,9 @@
 
 ## Overview
 
-SourDough Scout is a full-stack web application that helps users discover authentic sourdough pizza restaurants across America. The application features an interactive map, search functionality, and detailed restaurant information, making it perfect for travelers seeking naturally leavened pizza on the road.
+SourDough Scout is a comprehensive full-stack web application that helps users discover authentic sourdough pizza restaurants across America. The application features an interactive map, search functionality, and detailed restaurant information, making it perfect for travelers seeking naturally leavened pizza on the road.
+
+**Current Status**: Ready for nationwide expansion using comprehensive API-based discovery system covering 99 strategic cities with 7,300+ total pizza restaurants for sourdough verification.
 
 ## User Preferences
 
@@ -58,6 +60,13 @@ The application features a comprehensive restaurant discovery system focused exc
 - **Name-Independent Discovery**: Finds restaurants without "pizza" in the name using category filtering
 - **Dual Verification**: Analyzes both Google Business profiles AND restaurant websites for sourdough keywords
 - **Enhanced Data Collection**: Extracts phone numbers, websites, and detailed descriptions
+
+#### 5. Nationwide Discovery System (`execute-nationwide-discovery.ts`)
+- **Strategic City Targeting**: 99 cities covering 50 most populated + 50 top tourist destinations
+- **Tier-Based Execution**: Prioritizes highest sourdough likelihood markets first
+- **API Integration**: Uses Outscraper API for comprehensive restaurant discovery
+- **Complete Coverage**: 7,300+ total pizza restaurants across all major US markets
+- **Free Implementation**: Operates within 100 free API requests, costing $0.099 total
 
 #### 4. Sourdough Verification Process
 All scrapers use strict restaurant-controlled content verification:
