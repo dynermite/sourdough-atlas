@@ -4,6 +4,72 @@ import { storage } from "./storage";
 import { insertRestaurantSchema } from "@shared/schema";
 import { registerScrapeRoutes } from "./scrape-routes";
 import { z } from "zod";
+import { OutscraperSourdoughDiscovery } from "./outscraper-integration";
+
+// Helper function to trigger area discovery
+async function triggerAreaDiscovery(bounds: { north: number; south: number; east: number; west: number; zoom: number }) {
+  console.log('Triggering area discovery for bounds:', bounds);
+  
+  // Estimate city from bounds center
+  const centerLat = (bounds.north + bounds.south) / 2;
+  const centerLng = (bounds.east + bounds.west) / 2;
+  
+  // Use reverse geocoding or city detection logic here
+  // For now, we'll use a simple approach based on known city coordinates
+  const city = await estimateCityFromCoordinates(centerLat, centerLng);
+  
+  if (city && process.env.OUTSCRAPER_API_KEY) {
+    const discovery = new OutscraperSourdoughDiscovery();
+    try {
+      const newRestaurants = await discovery.processOutscraperData(
+        process.env.OUTSCRAPER_API_KEY,
+        city.name,
+        city.state
+      );
+      console.log(`Discovered ${newRestaurants} new restaurants in ${city.name}, ${city.state}`);
+    } catch (error) {
+      console.error('Error in area discovery:', error);
+    }
+  }
+}
+
+// Estimate city from coordinates
+async function estimateCityFromCoordinates(lat: number, lng: number): Promise<{ name: string; state: string } | null> {
+  // Major US cities with approximate coordinates
+  const cities = [
+    { name: 'San Francisco', state: 'California', lat: 37.7749, lng: -122.4194 },
+    { name: 'Portland', state: 'Oregon', lat: 45.5152, lng: -122.6784 },
+    { name: 'Seattle', state: 'Washington', lat: 47.6062, lng: -122.3321 },
+    { name: 'Austin', state: 'Texas', lat: 30.2672, lng: -97.7431 },
+    { name: 'Denver', state: 'Colorado', lat: 39.7392, lng: -104.9903 },
+    { name: 'Chicago', state: 'Illinois', lat: 41.8781, lng: -87.6298 },
+    { name: 'New York', state: 'New York', lat: 40.7128, lng: -74.0060 },
+    { name: 'Los Angeles', state: 'California', lat: 34.0522, lng: -118.2437 },
+    { name: 'Miami', state: 'Florida', lat: 25.7617, lng: -80.1918 },
+    { name: 'Boston', state: 'Massachusetts', lat: 42.3601, lng: -71.0589 },
+    { name: 'Philadelphia', state: 'Pennsylvania', lat: 39.9526, lng: -75.1652 },
+    { name: 'Phoenix', state: 'Arizona', lat: 33.4484, lng: -112.0740 },
+    { name: 'San Diego', state: 'California', lat: 32.7157, lng: -117.1611 },
+    { name: 'Dallas', state: 'Texas', lat: 32.7767, lng: -96.7970 },
+    { name: 'Houston', state: 'Texas', lat: 29.7604, lng: -95.3698 }
+  ];
+  
+  // Find closest city within reasonable distance (0.5 degrees ~ 55km)
+  let closestCity = null;
+  let minDistance = 0.5;
+  
+  for (const city of cities) {
+    const distance = Math.sqrt(
+      Math.pow(lat - city.lat, 2) + Math.pow(lng - city.lng, 2)
+    );
+    if (distance < minDistance) {
+      minDistance = distance;
+      closestCity = { name: city.name, state: city.state };
+    }
+  }
+  
+  return closestCity;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -66,6 +132,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(restaurants);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch restaurants by state" });
+    }
+  });
+
+  // Get restaurants within map bounds with auto-discovery
+  app.get("/api/restaurants/bounds", async (req, res) => {
+    try {
+      const { north, south, east, west, zoom } = req.query;
+      
+      if (!north || !south || !east || !west) {
+        return res.status(400).json({ message: "Bounds parameters required" });
+      }
+
+      const bounds = {
+        north: parseFloat(north as string),
+        south: parseFloat(south as string),
+        east: parseFloat(east as string),
+        west: parseFloat(west as string),
+        zoom: parseInt(zoom as string) || 10
+      };
+
+      // Get existing restaurants in bounds first
+      const existingRestaurants = await storage.getRestaurantsInBounds(bounds);
+      
+      // If zoom level is high enough (city level) and we have few restaurants, trigger discovery
+      if (bounds.zoom >= 10 && existingRestaurants.length < 5) {
+        // Trigger background discovery for this area
+        setTimeout(async () => {
+          try {
+            await triggerAreaDiscovery(bounds);
+          } catch (error) {
+            console.error('Background discovery failed:', error);
+          }
+        }, 0);
+      }
+      
+      res.json(existingRestaurants);
+    } catch (error) {
+      console.error('Error fetching restaurants by bounds:', error);
+      res.status(500).json({ message: "Failed to fetch restaurants by bounds" });
     }
   });
 

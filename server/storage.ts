@@ -15,6 +15,7 @@ export interface IStorage {
   getRestaurantsByState(state: string): Promise<Restaurant[]>;
   searchRestaurants(query: string): Promise<Restaurant[]>;
   createRestaurant(restaurant: InsertRestaurant): Promise<Restaurant>;
+  getRestaurantsInBounds(bounds: { north: number; south: number; east: number; west: number }): Promise<Restaurant[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -68,6 +69,21 @@ export class DatabaseStorage implements IStorage {
       .values(insertRestaurant)
       .returning();
     return restaurant;
+  }
+
+  async getRestaurantsInBounds(bounds: { north: number; south: number; east: number; west: number }): Promise<Restaurant[]> {
+    const allRestaurants = await db.select().from(restaurants);
+    return allRestaurants.filter(restaurant => {
+      const lat = restaurant.latitude;
+      const lng = restaurant.longitude;
+      
+      if (!lat || !lng) return false;
+      
+      return lat >= bounds.south && 
+             lat <= bounds.north && 
+             lng >= bounds.west && 
+             lng <= bounds.east;
+    });
   }
 }
 
@@ -249,6 +265,21 @@ export class MemStorage implements IStorage {
     const restaurant: Restaurant = { ...insertRestaurant, id };
     this.restaurants.set(id, restaurant);
     return restaurant;
+  }
+
+  async getRestaurantsInBounds(bounds: { north: number; south: number; east: number; west: number }): Promise<Restaurant[]> {
+    const allRestaurants = Array.from(this.restaurants.values());
+    return allRestaurants.filter(restaurant => {
+      const lat = restaurant.latitude;
+      const lng = restaurant.longitude;
+      
+      if (!lat || !lng) return false;
+      
+      return lat >= bounds.south && 
+             lat <= bounds.north && 
+             lng >= bounds.west && 
+             lng <= bounds.east;
+    });
   }
 }
 

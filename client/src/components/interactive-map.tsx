@@ -121,18 +121,53 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
     }, 100);
   };
 
-  const updateVisibleRestaurants = (map: any, zoom: number) => {
+  const updateVisibleRestaurants = async (map: any, zoom: number) => {
     if (!map) return;
     
     const bounds = map.getBounds();
-    const visible = restaurants.filter(restaurant => {
-      const lat = restaurant.latitude || 39.8283;
-      const lng = restaurant.longitude || -98.5795;
-      return bounds.contains([lat, lng]);
-    });
-    
-    setVisibleRestaurants(visible);
-    addRestaurantMarkers(map, visible, zoom);
+    const mapBounds = {
+      north: bounds.getNorth(),
+      south: bounds.getSouth(),
+      east: bounds.getEast(),
+      west: bounds.getWest(),
+      zoom: zoom
+    };
+
+    try {
+      // Fetch restaurants within current map bounds (includes auto-discovery)
+      const response = await fetch(`/api/restaurants/bounds?` + new URLSearchParams({
+        north: mapBounds.north.toString(),
+        south: mapBounds.south.toString(),
+        east: mapBounds.east.toString(),
+        west: mapBounds.west.toString(),
+        zoom: mapBounds.zoom.toString()
+      }));
+      
+      if (response.ok) {
+        const boundsRestaurants = await response.json();
+        setVisibleRestaurants(boundsRestaurants);
+        addRestaurantMarkers(map, boundsRestaurants, zoom);
+      } else {
+        // Fallback to client-side filtering
+        const visible = restaurants.filter(restaurant => {
+          const lat = restaurant.latitude || 39.8283;
+          const lng = restaurant.longitude || -98.5795;
+          return bounds.contains([lat, lng]);
+        });
+        setVisibleRestaurants(visible);
+        addRestaurantMarkers(map, visible, zoom);
+      }
+    } catch (error) {
+      console.error('Error fetching restaurants by bounds:', error);
+      // Fallback to client-side filtering
+      const visible = restaurants.filter(restaurant => {
+        const lat = restaurant.latitude || 39.8283;
+        const lng = restaurant.longitude || -98.5795;
+        return bounds.contains([lat, lng]);
+      });
+      setVisibleRestaurants(visible);
+      addRestaurantMarkers(map, visible, zoom);
+    }
   };
 
   const addRestaurantMarkers = (map: any, restaurantsToShow: Restaurant[], zoom: number) => {
@@ -289,7 +324,7 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       initializeMap();
     }
 
-    function initializeMap() {
+    async function initializeMap() {
       const L = (window as any).L;
       
       if (!mapRef.current || leafletMapRef.current) return;
@@ -330,18 +365,18 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       addNavigationControls(map);
       
       // Add event listeners for dynamic loading
-      map.on('zoomend moveend', () => {
+      map.on('zoomend moveend', async () => {
         try {
           const zoom = map.getZoom();
           setCurrentZoom(zoom);
-          updateVisibleRestaurants(map, zoom);
+          await updateVisibleRestaurants(map, zoom);
         } catch (error) {
           console.error('Error handling map zoom/move:', error);
         }
       });
       
       // Initial load
-      updateVisibleRestaurants(map, 4);
+      await updateVisibleRestaurants(map, 4);
     }
 
     return () => {
@@ -360,9 +395,12 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
 
   // Separate effect for updating markers when restaurants change
   useEffect(() => {
-    if (leafletMapRef.current && (window as any).L) {
-      updateVisibleRestaurants(leafletMapRef.current, currentZoom);
-    }
+    const updateMap = async () => {
+      if (leafletMapRef.current && (window as any).L) {
+        await updateVisibleRestaurants(leafletMapRef.current, currentZoom);
+      }
+    };
+    updateMap();
   }, [restaurants, currentZoom]);
 
   return (
@@ -388,9 +426,14 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
               <div className="text-xs text-gray-500 mt-1">
                 {currentZoom < 6 
                   ? 'Showing major cities only' 
-                  : `Showing ${visibleRestaurants.length} restaurants in view`
+                  : `${visibleRestaurants.length} restaurants in view`
                 }
               </div>
+              {currentZoom >= 10 && (
+                <div className="text-xs text-blue-600 mt-1">
+                  🔍 Auto-discovering restaurants in this area
+                </div>
+              )}
             </div>
           </div>
         )}
