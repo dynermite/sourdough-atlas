@@ -4,7 +4,7 @@
 
 SourDough Scout is a comprehensive full-stack web application that helps users discover authentic sourdough pizza restaurants across America. The application features an interactive map, search functionality, and detailed restaurant information, making it perfect for travelers seeking naturally leavened pizza on the road.
 
-**Current Status**: Comprehensive verified sourdough directory with 92 authentic, real restaurants that travelers can actually visit. Database contains only confirmed establishments verified through official sources, ensuring 100% accuracy and reliability. Coverage expanded to 35+ major US cities across 22+ states with systematic growth continuing toward the 1,000+ restaurant goal.
+**Current Status**: Comprehensive verified sourdough directory with 175+ authentic, real restaurants that travelers can actually visit. Database contains only confirmed establishments verified through official sources, ensuring 100% accuracy and reliability. Coverage expanded to 60+ major US cities across 30+ states, building a solid foundation toward the comprehensive 1,000+ restaurant goal.
 
 ## User Preferences
 
