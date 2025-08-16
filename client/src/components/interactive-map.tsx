@@ -147,6 +147,30 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
         const boundsRestaurants = await response.json();
         setVisibleRestaurants(boundsRestaurants);
         addRestaurantMarkers(map, boundsRestaurants, zoom);
+        
+        // Auto-refresh every 5 seconds if discovery is active and few restaurants found
+        if (zoom >= 10 && boundsRestaurants.length < 5) {
+          setTimeout(async () => {
+            try {
+              const refreshResponse = await fetch(`/api/restaurants/bounds?` + new URLSearchParams({
+                north: mapBounds.north.toString(),
+                south: mapBounds.south.toString(),
+                east: mapBounds.east.toString(),
+                west: mapBounds.west.toString(),
+                zoom: mapBounds.zoom.toString()
+              }));
+              if (refreshResponse.ok) {
+                const refreshedRestaurants = await refreshResponse.json();
+                if (refreshedRestaurants.length > boundsRestaurants.length) {
+                  setVisibleRestaurants(refreshedRestaurants);
+                  addRestaurantMarkers(map, refreshedRestaurants, zoom);
+                }
+              }
+            } catch (error) {
+              console.error('Auto-refresh failed:', error);
+            }
+          }, 5000);
+        }
       } else {
         // Fallback to client-side filtering
         const visible = restaurants.filter(restaurant => {
