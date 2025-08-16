@@ -151,6 +151,10 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       restaurantsToShow = majorCities;
     }
 
+    if (!restaurantsToShow || restaurantsToShow.length === 0) {
+      return; // Exit early if no restaurants to show
+    }
+
     restaurantsToShow.forEach((restaurant) => {
       const lat = restaurant.latitude || 39.8283;
       const lng = restaurant.longitude || -98.5795;
@@ -327,31 +331,39 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       
       // Add event listeners for dynamic loading
       map.on('zoomend moveend', () => {
-        const zoom = map.getZoom();
-        setCurrentZoom(zoom);
-        updateVisibleRestaurants(map, zoom);
+        try {
+          const zoom = map.getZoom();
+          setCurrentZoom(zoom);
+          updateVisibleRestaurants(map, zoom);
+        } catch (error) {
+          console.error('Error handling map zoom/move:', error);
+        }
       });
       
       // Initial load
       updateVisibleRestaurants(map, 4);
     }
 
+    return () => {
+      if (leafletMapRef.current) {
+        try {
+          markersRef.current.forEach(marker => leafletMapRef.current.removeLayer(marker));
+          leafletMapRef.current.remove();
+          leafletMapRef.current = null;
+          markersRef.current = [];
+        } catch (error) {
+          console.error('Error cleaning up map:', error);
+        }
+      }
+    };
+  }, []);
 
-
-    // Update markers when restaurants change
+  // Separate effect for updating markers when restaurants change
+  useEffect(() => {
     if (leafletMapRef.current && (window as any).L) {
       updateVisibleRestaurants(leafletMapRef.current, currentZoom);
     }
-
-    return () => {
-      if (leafletMapRef.current) {
-        markersRef.current.forEach(marker => leafletMapRef.current.removeLayer(marker));
-        leafletMapRef.current.remove();
-        leafletMapRef.current = null;
-        markersRef.current = [];
-      }
-    };
-  }, [restaurants, onRestaurantSelect, currentZoom]);
+  }, [restaurants, currentZoom]);
 
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
