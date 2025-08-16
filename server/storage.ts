@@ -77,7 +77,8 @@ export class DatabaseStorage implements IStorage {
       const lat = restaurant.latitude;
       const lng = restaurant.longitude;
       
-      if (!lat || !lng) return false;
+      // Skip restaurants without valid coordinates
+      if (!lat || !lng || lat === 0 || lng === 0) return false;
       
       return lat >= bounds.south && 
              lat <= bounds.north && 

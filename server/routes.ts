@@ -111,8 +111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingRestaurants = await storage.getRestaurantsInBounds(bounds);
       console.log(`Found ${existingRestaurants.length} restaurants in bounds`);
       
-      // If zoom level is high enough (city level) and we have few restaurants, trigger discovery
-      if (bounds.zoom >= 10 && existingRestaurants.length < 5) {
+      // If zoom level is high enough (regional/city level) and we have few restaurants, trigger discovery
+      if (bounds.zoom >= 8 && existingRestaurants.length < 3) {
         console.log('Triggering background discovery...');
         // Trigger background discovery for this area
         setTimeout(async () => {

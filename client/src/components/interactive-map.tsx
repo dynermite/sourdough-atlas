@@ -149,7 +149,7 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
         addRestaurantMarkers(map, boundsRestaurants, zoom);
         
         // Auto-refresh every 5 seconds if discovery is active and few restaurants found
-        if (zoom >= 10 && boundsRestaurants.length < 5) {
+        if (zoom >= 8 && boundsRestaurants.length < 3) {
           setTimeout(async () => {
             try {
               const refreshResponse = await fetch(`/api/restaurants/bounds?` + new URLSearchParams({
@@ -202,12 +202,9 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
     markersRef.current = [];
 
     // Only show markers at appropriate zoom levels
-    if (zoom < 6) {
-      // At low zoom, show state-level clustering or major cities only
-      const majorCities = restaurantsToShow.filter(r => 
-        ['San Francisco', 'Portland', 'Seattle', 'Austin', 'Denver', 'Chicago', 'New York'].includes(r.city)
-      );
-      restaurantsToShow = majorCities;
+    if (zoom < 7) {
+      // At low zoom (country/state level), don't show any restaurants
+      return;
     }
 
     if (!restaurantsToShow || restaurantsToShow.length === 0) {
