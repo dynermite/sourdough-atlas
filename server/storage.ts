@@ -203,6 +203,38 @@ export class MemStorage implements IStorage {
         latitude: 39.7392,
         longitude: -104.9903,
         imageUrl: "https://images.unsplash.com/photo-1509440159596-0249088772ff?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400"
+      },
+      {
+        name: "Sourdough & Co LA",
+        address: "1234 Sunset Blvd",
+        city: "Los Angeles",
+        state: "CA",
+        zipCode: "90027",
+        phone: "(323) 555-1234",
+        website: "https://sourdoughcola.com",
+        description: "Authentic sourdough pizza with a West Coast twist. Our naturally leavened dough is fermented for 24 hours using wild yeast starter.",
+        sourdoughVerified: 1,
+        rating: 4.7,
+        reviewCount: 189,
+        latitude: 34.0522,
+        longitude: -118.2437,
+        imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400"
+      },
+      {
+        name: "Wild West Sourdough",
+        address: "5678 Melrose Ave",
+        city: "Los Angeles", 
+        state: "CA",
+        zipCode: "90038",
+        phone: "(323) 555-5678",
+        website: "https://wildwestsourdough.com",
+        description: "Traditional sourdough techniques meet California innovation. Long fermentation process creates complex flavors in our naturally leavened crusts.",
+        sourdoughVerified: 1,
+        rating: 4.5,
+        reviewCount: 156,
+        latitude: 34.0836,
+        longitude: -118.3258,
+        imageUrl: "https://images.unsplash.com/photo-1571066811602-716837d681de?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400"
       }
     ];
 

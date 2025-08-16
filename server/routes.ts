@@ -86,19 +86,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get restaurant by ID
-  app.get("/api/restaurants/:id", async (req, res) => {
+  // Get restaurants within map bounds with auto-discovery (MUST come before :id route)
+  app.get("/api/restaurants/bounds", async (req, res) => {
     try {
-      const { id } = req.params;
-      const restaurant = await storage.getRestaurantById(id);
+      console.log('Bounds endpoint hit with query:', req.query);
+      const { north, south, east, west, zoom } = req.query;
       
-      if (!restaurant) {
-        return res.status(404).json({ message: "Restaurant not found" });
+      if (!north || !south || !east || !west) {
+        console.log('Missing bounds parameters');
+        return res.status(400).json({ message: "Bounds parameters required" });
+      }
+
+      const bounds = {
+        north: parseFloat(north as string),
+        south: parseFloat(south as string),
+        east: parseFloat(east as string),
+        west: parseFloat(west as string),
+        zoom: parseInt(zoom as string) || 10
+      };
+
+      console.log('Parsed bounds:', bounds);
+
+      // Get existing restaurants in bounds first
+      const existingRestaurants = await storage.getRestaurantsInBounds(bounds);
+      console.log(`Found ${existingRestaurants.length} restaurants in bounds`);
+      
+      // If zoom level is high enough (city level) and we have few restaurants, trigger discovery
+      if (bounds.zoom >= 10 && existingRestaurants.length < 5) {
+        console.log('Triggering background discovery...');
+        // Trigger background discovery for this area
+        setTimeout(async () => {
+          try {
+            await triggerAreaDiscovery(bounds);
+          } catch (error) {
+            console.error('Background discovery failed:', error);
+          }
+        }, 0);
       }
       
-      res.json(restaurant);
+      res.json(existingRestaurants);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch restaurant" });
+      console.error('Error fetching restaurants by bounds:', error);
+      res.status(500).json({ message: "Failed to fetch restaurants by bounds" });
     }
   });
 
@@ -135,42 +164,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get restaurants within map bounds with auto-discovery
-  app.get("/api/restaurants/bounds", async (req, res) => {
+  // Get restaurant by ID (MUST come after specific routes)
+  app.get("/api/restaurants/:id", async (req, res) => {
     try {
-      const { north, south, east, west, zoom } = req.query;
+      const { id } = req.params;
+      const restaurant = await storage.getRestaurantById(id);
       
-      if (!north || !south || !east || !west) {
-        return res.status(400).json({ message: "Bounds parameters required" });
-      }
-
-      const bounds = {
-        north: parseFloat(north as string),
-        south: parseFloat(south as string),
-        east: parseFloat(east as string),
-        west: parseFloat(west as string),
-        zoom: parseInt(zoom as string) || 10
-      };
-
-      // Get existing restaurants in bounds first
-      const existingRestaurants = await storage.getRestaurantsInBounds(bounds);
-      
-      // If zoom level is high enough (city level) and we have few restaurants, trigger discovery
-      if (bounds.zoom >= 10 && existingRestaurants.length < 5) {
-        // Trigger background discovery for this area
-        setTimeout(async () => {
-          try {
-            await triggerAreaDiscovery(bounds);
-          } catch (error) {
-            console.error('Background discovery failed:', error);
-          }
-        }, 0);
+      if (!restaurant) {
+        return res.status(404).json({ message: "Restaurant not found" });
       }
       
-      res.json(existingRestaurants);
+      res.json(restaurant);
     } catch (error) {
-      console.error('Error fetching restaurants by bounds:', error);
-      res.status(500).json({ message: "Failed to fetch restaurants by bounds" });
+      res.status(500).json({ message: "Failed to fetch restaurant" });
     }
   });
 
