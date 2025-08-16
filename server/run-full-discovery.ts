@@ -2,100 +2,73 @@
 
 import { OutscraperSourdoughDiscovery } from './outscraper-integration';
 
-// Strategic cities for initial discovery - Phase 1 high-value targets
-const PHASE_1_CITIES = [
-  { city: 'New York', state: 'NY', tier: 1 },
-  { city: 'Los Angeles', state: 'CA', tier: 1 },
-  { city: 'Chicago', state: 'IL', tier: 1 },
-  { city: 'Boston', state: 'MA', tier: 1 },
-  { city: 'Philadelphia', state: 'PA', tier: 1 },
-  { city: 'Washington', state: 'DC', tier: 1 },
-  { city: 'Denver', state: 'CO', tier: 1 },
-  { city: 'Portland', state: 'OR', tier: 1 },
-  { city: 'Seattle', state: 'WA', tier: 1 },
-  { city: 'Austin', state: 'TX', tier: 1 },
-  { city: 'Atlanta', state: 'GA', tier: 1 },
-  { city: 'Miami', state: 'FL', tier: 1 },
-  { city: 'Dallas', state: 'TX', tier: 1 },
-  { city: 'Houston', state: 'TX', tier: 1 },
-  { city: 'Phoenix', state: 'AZ', tier: 1 },
-  { city: 'San Diego', state: 'CA', tier: 1 },
-  { city: 'Detroit', state: 'MI', tier: 1 },
-  { city: 'Minneapolis', state: 'MN', tier: 1 },
-  { city: 'Nashville', state: 'TN', tier: 1 },
-  { city: 'Las Vegas', state: 'NV', tier: 1 }
+// Strategic 30-city plan for maximum verified restaurant discovery
+const PRIORITY_DISCOVERY_PLAN = [
+  // Tier 1: Proven high-yield markets
+  'Los Angeles,CA', 'San Diego,CA', 'Oakland,CA', 'Sacramento,CA',
+  'Denver,CO', 'Boulder,CO', 'Washington,DC', 
+  'Miami,FL', 'Tampa,FL', 'Atlanta,GA',
+  'Boston,MA', 'Cambridge,MA', 'Minneapolis,MN',
+  'Las Vegas,NV', 'Brooklyn,NY', 'Buffalo,NY',
+  'Cleveland,OH', 'Columbus,OH', 'Pittsburgh,PA',
+  'Nashville,TN', 'Memphis,TN', 'Dallas,TX', 'Houston,TX',
+  'Salt Lake City,UT', 'Richmond,VA', 'Milwaukee,WI',
+  'Detroit,MI', 'Baltimore,MD', 'New Orleans,LA', 'Louisville,KY'
 ];
 
-async function executeFullDiscovery() {
+export async function runFullDiscovery() {
   const apiKey = process.env.OUTSCRAPER_API_KEY;
   
   if (!apiKey) {
-    console.log('❌ OUTSCRAPER_API_KEY not found in environment');
-    console.log('Please ensure the API key is properly configured');
-    return;
+    console.log('OUTSCRAPER_API_KEY required for comprehensive discovery');
+    return { error: 'Missing API key' };
   }
 
-  console.log('🚀 EXECUTING COMPREHENSIVE NATIONWIDE SOURDOUGH DISCOVERY');
-  console.log('============================================================');
-  console.log(`📊 Processing ${PHASE_1_CITIES.length} strategic cities`);
-  console.log(`🎯 Goal: Discover 500-1,500 authentic sourdough restaurants`);
-  console.log(`💰 Estimated cost: $${(PHASE_1_CITIES.length * 0.001).toFixed(3)}`);
+  console.log('🚀 COMPREHENSIVE VERIFIED RESTAURANT DISCOVERY');
+  console.log('=' .repeat(60));
+  console.log(`📊 Processing ${PRIORITY_DISCOVERY_PLAN.length} strategic cities`);
+  console.log('✅ Only adding verified, real sourdough restaurants');
   
   const discovery = new OutscraperSourdoughDiscovery();
-  let totalSourdoughFound = 0;
-  let totalRestaurantsProcessed = 0;
-  let citiesCompleted = 0;
-  let failedCities = 0;
+  let totalVerified = 0;
+  let processed = 0;
+  let failed = 0;
 
-  console.log('\n🏙️  PROCESSING CITIES:');
-  console.log('=' .repeat(50));
+  console.log('\n🔍 BEGINNING SYSTEMATIC DISCOVERY:');
 
-  for (const cityData of PHASE_1_CITIES) {
-    const { city, state } = cityData;
+  for (const cityState of PRIORITY_DISCOVERY_PLAN) {
+    const [city, state] = cityState.split(',');
     
     try {
-      console.log(`\n[${citiesCompleted + 1}/${PHASE_1_CITIES.length}] 🍕 ${city}, ${state}`);
-      console.log('-'.repeat(40));
+      console.log(`[${processed + 1}/${PRIORITY_DISCOVERY_PLAN.length}] ${city}, ${state}`);
       
-      const sourdoughFound = await discovery.processOutscraperData(apiKey, city, state);
+      const verified = await discovery.processOutscraperData(apiKey, city, state);
+      totalVerified += verified;
+      processed++;
       
-      totalSourdoughFound += sourdoughFound;
-      citiesCompleted++;
+      if (verified > 0) {
+        console.log(`  ✅ +${verified} verified restaurants`);
+      } else {
+        console.log(`  ⚠️  No verified restaurants found`);
+      }
       
-      console.log(`✅ ${city}: Found ${sourdoughFound} verified sourdough restaurants`);
-      
-      // Brief pause between cities to respect API limits
-      if (citiesCompleted < PHASE_1_CITIES.length) {
-        console.log('⏸️  Pausing 1 second between cities...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      if (processed % 10 === 0) {
+        console.log(`\n📊 Progress: ${processed}/${PRIORITY_DISCOVERY_PLAN.length} cities, ${totalVerified} total verified restaurants\n`);
       }
       
     } catch (error) {
-      failedCities++;
-      console.log(`❌ ${city}: Discovery failed - ${error instanceof Error ? error.message : 'Unknown error'}`);
+      failed++;
+      console.log(`  ❌ Failed`);
     }
   }
 
-  // Final Results Summary
-  console.log('\n' + '='.repeat(60));
-  console.log('🎉 NATIONWIDE DISCOVERY COMPLETE!');
-  console.log('='.repeat(60));
-  console.log(`📊 FINAL RESULTS:`);
-  console.log(`✅ Cities successfully processed: ${citiesCompleted}`);
-  console.log(`❌ Cities failed: ${failedCities}`);
-  console.log(`🍕 Total sourdough restaurants discovered: ${totalSourdoughFound}`);
-  console.log(`🎯 Success rate: ${((citiesCompleted / PHASE_1_CITIES.length) * 100).toFixed(1)}%`);
+  console.log('\n🎉 COMPREHENSIVE DISCOVERY COMPLETE!');
+  console.log(`📊 Final Results: ${totalVerified} verified restaurants from ${processed} cities`);
+  console.log(`🗺️  Directory ready for nationwide searches and map visualization`);
   
-  if (totalSourdoughFound > 0) {
-    console.log(`\n🗺️  Your sourdough directory now covers ${citiesCompleted} major cities!`);
-    console.log(`🧭 Travelers can now find authentic sourdough pizza nationwide`);
-  }
-  
-  console.log('\n📈 Database ready for user queries and map visualization');
+  return { totalVerified, processed, failed };
 }
 
 if (import.meta.url.endsWith(process.argv[1])) {
-  executeFullDiscovery().catch(console.error);
+  runFullDiscovery().catch(console.error);
 }
-
-export { executeFullDiscovery };
