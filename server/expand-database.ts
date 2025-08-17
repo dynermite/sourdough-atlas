@@ -2,467 +2,271 @@
 
 import { db } from './db';
 import { restaurants } from '../shared/schema';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+import { eq } from 'drizzle-orm';
 
-// Strategic expansion with verified authentic sourdough restaurants
-// Each restaurant confirmed through research of official sources
-const VERIFIED_EXPANSION_RESTAURANTS = [
-  // Continue building comprehensive coverage with verified establishments
+const SOURDOUGH_KEYWORDS = ['sourdough', 'naturally leavened', 'wild yeast', 'naturally fermented'];
+
+// Focus on bakeries and artisan establishments more likely to mention sourdough
+const BAKERY_PIZZA_ESTABLISHMENTS = [
+  // California sourdough specialists
+  { name: "Tartine Manufactory", website: "https://www.tartinemanufactory.com", city: "San Francisco", state: "CA" },
+  { name: "Mission Chinese Food", website: "https://missionchinesefood.com", city: "San Francisco", state: "CA" },
+  { name: "State Bird Provisions", website: "https://statebirdsf.com", city: "San Francisco", state: "CA" },
+  { name: "The Mill", website: "https://themillsf.com", city: "San Francisco", state: "CA" },
+  { name: "Outerlands", website: "https://outerlandssf.com", city: "San Francisco", state: "CA" },
   
-  // MASSACHUSETTS - Boston Area Expansion (8 more restaurants)
-  {
-    name: "Area Four",
-    address: "500 Technology Sq",
-    city: "Cambridge",
-    state: "MA",
-    zipCode: "02139",
-    phone: "(617) 758-4444",
-    website: "https://areafour.com",
-    description: "Modern American with sourdough pizza and house-milled grains",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.3,
-    reviewCount: 1890,
-    latitude: 42.3625,
-    longitude: -71.0892
-  },
-  {
-    name: "Santarpio's Pizza",
-    address: "111 Chelsea St",
-    city: "Boston",
-    state: "MA",
-    zipCode: "02128",
-    phone: "(617) 567-9871",
-    website: "https://santarpiospizza.com",
-    description: "Historic East Boston pizzeria with traditional sourdough methods",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.4,
-    reviewCount: 2100,
-    latitude: 42.3751,
-    longitude: -71.0275
-  },
+  // Portland artisan scene
+  { name: "Grand Central Bakery", website: "https://grandcentralbakery.com", city: "Portland", state: "OR" },
+  { name: "Pearl Bakery", website: "https://pearlbakery.com", city: "Portland", state: "OR" },
+  { name: "Little T American Baker", website: "https://littletbaker.com", city: "Portland", state: "OR" },
+  { name: "Levison's", website: "https://levisons.com", city: "Portland", state: "OR" },
   
-  // COLORADO - Denver/Boulder Expansion (6 restaurants)
-  {
-    name: "Pizzeria Locale",
-    address: "1730 Pearl St",
-    city: "Boulder",
-    state: "CO",
-    zipCode: "80302",
-    phone: "(303) 442-3003",
-    website: "https://pizzerialocale.com",
-    description: "Fast-casual Neapolitan with naturally fermented sourdough",
-    sourdoughKeywords: ["naturally fermented", "sourdough"],
-    rating: 4.2,
-    reviewCount: 890,
-    latitude: 40.0176,
-    longitude: -105.2797
-  },
-  {
-    name: "Atomic Cowboy",
-    address: "3237 E Colfax Ave",
-    city: "Denver",
-    state: "CO",
-    zipCode: "80206",
-    phone: "(303) 322-9237",
-    website: "https://atomiccowboydenver.com",
-    description: "Creative pizza with house-made sourdough crust",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.3,
-    reviewCount: 1680,
-    latitude: 39.7405,
-    longitude: -104.9534
-  },
-  {
-    name: "Perdida",
-    address: "1917 S Broadway",
-    city: "Denver",
-    state: "CO",
-    zipCode: "80210",
-    phone: "(303) 778-6801",
-    website: "https://perdidadenver.com",
-    description: "Wood-fired pizza with sourdough and local ingredients",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.4,
-    reviewCount: 1120,
-    latitude: 39.6934,
-    longitude: -104.9876
-  },
+  // Seattle sourdough culture
+  { name: "Macrina Bakery", website: "https://macrinabakery.com", city: "Seattle", state: "WA" },
+  { name: "Columbia City Bakery", website: "https://columbiacitybakery.com", city: "Seattle", state: "WA" },
+  { name: "Grand Central Bakery", website: "https://grandcentralbakery.com", city: "Seattle", state: "WA" },
+  { name: "Tall Grass Bakery", website: "https://tallgrassbakery.com", city: "Seattle", state: "WA" },
   
-  // GEORGIA - Atlanta Expansion (5 restaurants)
-  {
-    name: "Antico Pizza Napoletana",
-    address: "1093 Hemphill Ave NW",
-    city: "Atlanta",
-    state: "GA",
-    zipCode: "30309",
-    phone: "(404) 724-2333",
-    website: "https://anticopizza.com",
-    description: "Authentic Neapolitan pizza with sourdough starter from Italy",
-    sourdoughKeywords: ["sourdough", "starter"],
-    rating: 4.5,
-    reviewCount: 4200,
-    latitude: 33.7849,
-    longitude: -84.4103
-  },
-  {
-    name: "Varuni Napoli",
-    address: "1540 Monroe Dr NE",
-    city: "Atlanta",
-    state: "GA",
-    zipCode: "30324",
-    phone: "(404) 709-2690",
-    website: "https://varuninapoli.com",
-    description: "Wood-fired pizza with naturally fermented sourdough",
-    sourdoughKeywords: ["naturally fermented", "sourdough"],
-    rating: 4.3,
-    reviewCount: 1670,
-    latitude: 33.7955,
-    longitude: -84.3733
-  },
+  // New York artisan pizza/bread
+  { name: "Pizza Beach", website: "https://pizzabeach.com", city: "Brooklyn", state: "NY" },
+  { name: "L'industrie Pizzeria", website: "https://lindustriepizzeria.com", city: "Brooklyn", state: "NY" },
+  { name: "Ops", website: "https://opsbrooklyn.com", city: "Brooklyn", state: "NY" },
+  { name: "Mimi's", website: "https://mimispizza.com", city: "Brooklyn", state: "NY" },
+  { name: "Amy's Bread", website: "https://amysbread.com", city: "New York", state: "NY" },
+  { name: "She Wolf Bakery", website: "https://shewolfbakery.com", city: "Brooklyn", state: "NY" },
   
-  // MINNESOTA - Minneapolis/St. Paul (4 restaurants)
-  {
-    name: "Pizza Luce",
-    address: "119 N 4th St",
-    city: "Minneapolis",
-    state: "MN",
-    zipCode: "55401",
-    phone: "(612) 333-7359",
-    website: "https://pizzaluce.com",
-    description: "Local favorite with sourdough crust and creative toppings",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.2,
-    reviewCount: 2890,
-    latitude: 44.9833,
-    longitude: -93.2717
-  },
-  {
-    name: "Punch Neapolitan Pizza",
-    address: "704 Cleveland Ave S",
-    city: "Saint Paul",
-    state: "MN",
-    zipCode: "55116",
-    phone: "(651) 696-1066",
-    website: "https://punchpizza.com",
-    description: "Neapolitan pizza with naturally leavened sourdough",
-    sourdoughKeywords: ["naturally leavened", "sourdough"],
-    rating: 4.1,
-    reviewCount: 1450,
-    latitude: 44.9167,
-    longitude: -93.1806
-  },
+  // Philadelphia bread culture
+  { name: "High Street Provisions", website: "https://highstreetphilly.com", city: "Philadelphia", state: "PA" },
+  { name: "Metropolitan Bakery", website: "https://metropolitanbakery.com", city: "Philadelphia", state: "PA" },
+  { name: "Rival Bros Coffee", website: "https://rivalbros.com", city: "Philadelphia", state: "PA" },
   
-  // WASHINGTON DC (4 restaurants)
-  {
-    name: "2 Amys",
-    address: "3715 Macomb St NW",
-    city: "Washington",
-    state: "DC",
-    zipCode: "20016",
-    phone: "(202) 885-5700",
-    website: "https://2amyspizza.com",
-    description: "Authentic Neapolitan pizza with DOC-certified sourdough",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.4,
-    reviewCount: 2340,
-    latitude: 38.9391,
-    longitude: -77.0715
-  },
-  {
-    name: "Timber Pizza Company",
-    address: "809 Upshur St NW",
-    city: "Washington",
-    state: "DC",
-    zipCode: "20011",
-    phone: "(202) 853-9234",
-    website: "https://timberpizza.com",
-    description: "Wood-fired pizza with naturally fermented sourdough dough",
-    sourdoughKeywords: ["naturally fermented", "sourdough"],
-    rating: 4.3,
-    reviewCount: 1230,
-    latitude: 38.9420,
-    longitude: -77.0234
-  },
+  // Chicago deep connections to bread
+  { name: "Hoosier Mama Pie Company", website: "https://hoosiermamapie.com", city: "Chicago", state: "IL" },
+  { name: "Stan's Donuts", website: "https://stansdonuts.com", city: "Chicago", state: "IL" },
+  { name: "Publican Quality Bread", website: "https://publicanqualitybread.com", city: "Chicago", state: "IL" },
   
-  // FLORIDA - Miami/Tampa (6 restaurants)
-  {
-    name: "Josh's Organic Garden",
-    address: "12870 SW 42nd St",
-    city: "Miami",
-    state: "FL",
-    zipCode: "33175",
-    phone: "(305) 595-8383",
-    website: "https://joshsorganicgarden.com",
-    description: "Organic pizza with sourdough crust and local ingredients",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.2,
-    reviewCount: 890,
-    latitude: 25.7206,
-    longitude: -80.4034
-  },
-  {
-    name: "Lucali Miami",
-    address: "1930 Bay Rd",
-    city: "Miami",
-    state: "FL",
-    zipCode: "33139",
-    phone: "(305) 695-4441",
-    website: "https://lucali.com",
-    description: "Thin crust pizza with sourdough base",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.1,
-    reviewCount: 1670,
-    latitude: 25.7957,
-    longitude: -80.1409
-  },
-  {
-    name: "Dough",
-    address: "516 N Howard Ave",
-    city: "Tampa",
-    state: "FL",
-    zipCode: "33606",
-    phone: "(813) 251-3012",
-    website: "https://doughtampa.com",
-    description: "Artisan pizza with naturally leavened sourdough crust",
-    sourdoughKeywords: ["naturally leavened", "sourdough"],
-    rating: 4.3,
-    reviewCount: 1120,
-    latitude: 27.9506,
-    longitude: -82.4572
-  },
+  // Austin food scene
+  { name: "Sour Duck Market", website: "https://sourduckmarket.com", city: "Austin", state: "TX" },
+  { name: "Easy Tiger", website: "https://easytigerusa.com", city: "Austin", state: "TX" },
+  { name: "Quack's 43rd Street Bakery", website: "https://quacksbakery.com", city: "Austin", state: "TX" },
   
-  // TENNESSEE - Nashville/Memphis (4 restaurants)
-  {
-    name: "DeSano Pizza Bakery",
-    address: "115 16th Ave S",
-    city: "Nashville",
-    state: "TN",
-    zipCode: "37203",
-    phone: "(615) 953-9463",
-    website: "https://desanopizza.com",
-    description: "Neapolitan pizza with naturally leavened sourdough",
-    sourdoughKeywords: ["naturally leavened", "sourdough"],
-    rating: 4.4,
-    reviewCount: 2100,
-    latitude: 36.1506,
-    longitude: -86.7974
-  },
-  {
-    name: "Nicky's Coal Fired",
-    address: "2007 Belmont Blvd",
-    city: "Nashville",
-    state: "TN",
-    zipCode: "37212",
-    phone: "(615) 777-9000",
-    website: "https://nickyscoalfired.com",
-    description: "Coal-fired pizza with sourdough starter",
-    sourdoughKeywords: ["sourdough", "starter"],
-    rating: 4.2,
-    reviewCount: 1450,
-    latitude: 36.1370,
-    longitude: -86.7964
-  },
+  // Denver/Boulder altitude baking
+  { name: "Rebel Farm", website: "https://rebelfarm.com", city: "Boulder", state: "CO" },
+  { name: "Wooden Spoon Bakery", website: "https://woodenspoonbakery.net", city: "Denver", state: "CO" },
+  { name: "Grateful Bread", website: "https://gratefulbread.net", city: "Golden", state: "CO" },
   
-  // WISCONSIN - Milwaukee (3 restaurants)
-  {
-    name: "Craft",
-    address: "1000 N Water St",
-    city: "Milwaukee",
-    state: "WI",
-    zipCode: "53202",
-    phone: "(414) 272-0011",
-    website: "https://craftmke.com",
-    description: "Artisan pizza with sourdough crust and local ingredients",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.3,
-    reviewCount: 1230,
-    latitude: 43.0426,
-    longitude: -87.9073
-  },
-  {
-    name: "Odd Duck",
-    address: "2352 S Kinnickinnic Ave",
-    city: "Milwaukee",
-    state: "WI",
-    zipCode: "53207",
-    phone: "(414) 763-5881",
-    website: "https://oddduckrestaurant.com",
-    description: "Farm-to-table restaurant with sourdough pizza",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.4,
-    reviewCount: 890,
-    latitude: 43.0198,
-    longitude: -87.8967
-  },
-  
-  // MARYLAND - Baltimore (3 restaurants)
-  {
-    name: "Joe Squared",
-    address: "1225 N Charles St",
-    city: "Baltimore",
-    state: "MD",
-    zipCode: "21201",
-    phone: "(410) 545-0444",
-    website: "https://joesquared.com",
-    description: "Square pizza with sourdough crust and creative toppings",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.2,
-    reviewCount: 2340,
-    latitude: 39.3051,
-    longitude: -76.6144
-  },
-  {
-    name: "Matthew's Pizza",
-    address: "3131 Eastern Ave",
-    city: "Baltimore",
-    state: "MD",
-    zipCode: "21224",
-    phone: "(410) 276-8755",
-    website: "https://matthewspizza.com",
-    description: "Local institution with traditional sourdough crust",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.1,
-    reviewCount: 1560,
-    latitude: 39.2904,
-    longitude: -76.5731
-  },
-  
-  // MICHIGAN - Detroit (4 restaurants)
-  {
-    name: "Buddy's Pizza",
-    address: "17125 Conant St",
-    city: "Detroit",
-    state: "MI",
-    zipCode: "48212",
-    phone: "(313) 892-9001",
-    website: "https://buddyspizza.com",
-    description: "Original Detroit-style pizza with sourdough crust since 1946",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.4,
-    reviewCount: 3450,
-    latitude: 42.4025,
-    longitude: -83.0395
-  },
-  {
-    name: "Loui's Pizza",
-    address: "23141 Dequindre Rd",
-    city: "Warren",
-    state: "MI",
-    zipCode: "48091",
-    phone: "(586) 758-0550",
-    website: "https://louispizza.com",
-    description: "Detroit square pizza with naturally leavened sourdough",
-    sourdoughKeywords: ["naturally leavened", "sourdough"],
-    rating: 4.2,
-    reviewCount: 2100,
-    latitude: 42.4959,
-    longitude: -83.1277
-  },
-  
-  // NORTH CAROLINA - Charlotte/Raleigh (4 restaurants)
-  {
-    name: "Fuel Pizza",
-    address: "1501 Central Ave",
-    city: "Charlotte",
-    state: "NC",
-    zipCode: "28205",
-    phone: "(704) 373-3835",
-    website: "https://fuelpizza.com",
-    description: "Eco-friendly pizza with sourdough crust",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.2,
-    reviewCount: 1340,
-    latitude: 35.2271,
-    longitude: -80.8431
-  },
-  {
-    name: "Oakwood Pizza Box",
-    address: "719 N Person St",
-    city: "Raleigh",
-    state: "NC",
-    zipCode: "27604",
-    phone: "(919) 834-6400",
-    website: "https://oakwoodpizzabox.com",
-    description: "Neighborhood pizza with house-made sourdough",
-    sourdoughKeywords: ["sourdough"],
-    rating: 4.1,
-    reviewCount: 980,
-    latitude: 35.7796,
-    longitude: -78.6382
-  }
+  // Vermont/New England sourdough tradition
+  { name: "Red Hen Bakery", website: "https://redhenbaking.com", city: "Duxbury", state: "VT" },
+  { name: "King Arthur Baking", website: "https://kingarthurbaking.com", city: "Norwich", state: "VT" },
+  { name: "Elmore Mountain Bread", website: "https://elmoremountainbread.com", city: "Elmore", state: "VT" }
 ];
 
-export async function expandVerifiedDatabase() {
-  console.log('🔍 EXPANDING VERIFIED RESTAURANT DATABASE');
-  console.log('=' .repeat(55));
-  console.log('✅ Adding confirmed authentic sourdough establishments');
-  console.log(`📍 Importing ${VERIFIED_EXPANSION_RESTAURANTS.length} verified restaurants`);
-  
-  let imported = 0;
-  let skipped = 0;
-  const cityStats: { [key: string]: number } = {};
-  const stateStats: { [key: string]: number } = {};
+class ExpandedDatabaseBuilder {
+  private processed = 0;
+  private verified = 0;
+  private failed = 0;
 
-  for (const restaurant of VERIFIED_EXPANSION_RESTAURANTS) {
+  async processEstablishment(establishment: {
+    name: string;
+    website: string;
+    city: string;
+    state: string;
+  }) {
+    this.processed++;
+    console.log(`\n[${this.processed}/${BAKERY_PIZZA_ESTABLISHMENTS.length}] Checking: ${establishment.name}`);
+    
     try {
-      const restaurantData = {
-        name: restaurant.name,
-        address: restaurant.address,
-        city: restaurant.city,
-        state: restaurant.state,
-        zipCode: restaurant.zipCode,
-        phone: restaurant.phone,
-        website: restaurant.website,
-        description: restaurant.description,
-        sourdoughVerified: 1 as const,
-        sourdoughKeywords: restaurant.sourdoughKeywords,
-        rating: restaurant.rating,
-        reviewCount: restaurant.reviewCount,
-        latitude: restaurant.latitude,
-        longitude: restaurant.longitude,
+      // Check if already exists
+      const existing = await db.select().from(restaurants).where(eq(restaurants.name, establishment.name));
+      if (existing.length > 0) {
+        console.log(`   Already in database`);
+        return false;
+      }
+      
+      console.log(`   Analyzing website: ${establishment.website}`);
+      
+      const response = await axios.get(establishment.website, {
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
+      
+      const $ = cheerio.load(response.data);
+      const content = $('body').text().toLowerCase();
+      
+      // Check for approved sourdough keywords
+      const foundKeywords = SOURDOUGH_KEYWORDS.filter(keyword => 
+        content.includes(keyword.toLowerCase())
+      );
+      
+      // Also check if they serve pizza (since this is a pizza directory)
+      const hasPizza = content.includes('pizza') || content.includes('pizzeria') || 
+                      establishment.name.toLowerCase().includes('pizza');
+      
+      if (foundKeywords.length === 0) {
+        console.log(`   No sourdough keywords found`);
+        this.failed++;
+        return false;
+      }
+      
+      if (!hasPizza) {
+        console.log(`   Has sourdough [${foundKeywords.join(', ')}] but no pizza service`);
+        this.failed++;
+        return false;
+      }
+      
+      console.log(`   VERIFIED SOURDOUGH PIZZA: [${foundKeywords.join(', ')}]`);
+      
+      // Extract description
+      let description = '';
+      const metaDesc = $('meta[name="description"]').attr('content');
+      if (metaDesc && metaDesc.length > 20) {
+        description = metaDesc;
+      } else {
+        $('p').each((_, el) => {
+          const text = $(el).text().trim();
+          if (text.length > 60 && (
+            text.toLowerCase().includes('pizza') || 
+            foundKeywords.some(keyword => text.toLowerCase().includes(keyword))
+          )) {
+            description = text.substring(0, 200) + '...';
+            return false;
+          }
+        });
+      }
+      
+      // Get business data
+      const businessData = await this.getBusinessData(establishment.name, establishment.city, establishment.state);
+      
+      // Add to database
+      await db.insert(restaurants).values({
+        name: establishment.name,
+        address: businessData.address || '',
+        city: establishment.city,
+        state: establishment.state,
+        zipCode: '',
+        phone: businessData.phone || '',
+        website: establishment.website,
+        description: description || `${establishment.name} - verified sourdough pizza establishment`,
+        sourdoughVerified: 1,
+        sourdoughKeywords: foundKeywords,
+        rating: businessData.rating || 0,
+        reviewCount: businessData.reviewCount || 0,
+        latitude: businessData.latitude || 0,
+        longitude: businessData.longitude || 0,
         imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400"
-      };
+      });
       
-      await db.insert(restaurants).values(restaurantData);
-      imported++;
+      this.verified++;
+      console.log(`   ADDED TO DATABASE - Total: ${this.verified}`);
       
-      const cityKey = `${restaurant.city}, ${restaurant.state}`;
-      cityStats[cityKey] = (cityStats[cityKey] || 0) + 1;
-      stateStats[restaurant.state] = (stateStats[restaurant.state] || 0) + 1;
+      if (businessData.address) {
+        console.log(`   Address: ${businessData.address}`);
+      }
+      
+      return true;
       
     } catch (error) {
-      skipped++;
+      console.log(`   Error: ${error.message}`);
+      this.failed++;
+      return false;
     }
   }
+
+  async getBusinessData(name: string, city: string, state: string) {
+    const apiKey = process.env.OUTSCRAPER_API_KEY;
+    if (!apiKey) {
+      return { address: '', phone: '', rating: 0, reviewCount: 0, latitude: 0, longitude: 0 };
+    }
+    
+    try {
+      const query = `${name} ${city} ${state}`;
+      const response = await axios.get('https://api.outscraper.com/maps/search-v3', {
+        params: {
+          query,
+          limit: 1,
+          language: 'en',
+          region: 'US'
+        },
+        headers: {
+          'X-API-KEY': apiKey
+        }
+      });
+
+      if (response.data.status === 'Pending') {
+        await new Promise(resolve => setTimeout(resolve, 8000));
+        
+        const resultResponse = await axios.get(`https://api.outscraper.com/requests/${response.data.id}`, {
+          headers: {
+            'X-API-KEY': apiKey
+          }
+        });
+
+        if (resultResponse.data.status === 'Success' && resultResponse.data.data) {
+          const results = resultResponse.data.data;
+          if (results.length > 0) {
+            const business = results[0];
+            return {
+              address: business.address || '',
+              phone: business.phone || '',
+              rating: business.rating || 0,
+              reviewCount: business.reviews_count || 0,
+              latitude: business.latitude || 0,
+              longitude: business.longitude || 0
+            };
+          }
+        }
+      }
+      
+      return { address: '', phone: '', rating: 0, reviewCount: 0, latitude: 0, longitude: 0 };
+    } catch (error) {
+      return { address: '', phone: '', rating: 0, reviewCount: 0, latitude: 0, longitude: 0 };
+    }
+  }
+
+  getStats() {
+    return {
+      processed: this.processed,
+      verified: this.verified,
+      failed: this.failed,
+      successRate: this.processed > 0 ? ((this.verified / this.processed) * 100).toFixed(1) : '0'
+    };
+  }
+}
+
+export async function expandSourdoughDatabase() {
+  console.log('📈 EXPANDING SOURDOUGH DATABASE');
+  console.log('=' .repeat(50));
+  console.log(`🎯 Targeting bakeries and artisan establishments`);
+  console.log(`✅ Keywords: [${SOURDOUGH_KEYWORDS.join(', ')}]`);
+  console.log(`🍕 Must also serve pizza`);
   
-  console.log('=' .repeat(55));
-  console.log('🎉 DATABASE EXPANSION COMPLETE');
-  console.log(`✅ Imported: ${imported} verified restaurants`);
-  console.log(`⏭️  Skipped: ${skipped} duplicates`);
+  const builder = new ExpandedDatabaseBuilder();
   
-  console.log(`\n🏆 NEW CITIES ADDED:`);
-  Object.entries(cityStats)
-    .sort(([,a], [,b]) => b - a)
-    .forEach(([city, count]) => {
-      console.log(`   ${city}: ${count} restaurants`);
-    });
+  for (const establishment of BAKERY_PIZZA_ESTABLISHMENTS) {
+    await builder.processEstablishment(establishment);
+    
+    // Respectful pause
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
   
-  console.log(`\n🗺️  EXPANDED STATE COVERAGE:`);
-  Object.entries(stateStats)
-    .sort(([,a], [,b]) => b - a)
-    .forEach(([state, count]) => {
-      console.log(`   ${state}: +${count} restaurants`);
-    });
+  const stats = builder.getStats();
   
-  console.log(`\n✅ COMPREHENSIVE DIRECTORY NOW FEATURES:`);
-  console.log(`   • All restaurants are verified real establishments`);
-  console.log(`   • Complete coverage of major US sourdough markets`);
-  console.log(`   • Searchable by city and state`);
-  console.log(`   • Interactive map with authentic restaurant locations`);
-  console.log(`   • Ready for traveler searches nationwide`);
+  console.log(`\n📊 EXPANSION RESULTS:`);
+  console.log(`   Establishments checked: ${stats.processed}`);
+  console.log(`   Sourdough pizza verified: ${stats.verified}`);
+  console.log(`   Failed verification: ${stats.failed}`);
+  console.log(`   Success rate: ${stats.successRate}%`);
   
-  return { imported, skipped, cityStats, stateStats };
+  const totalRestaurants = await db.select().from(restaurants);
+  console.log(`   Total database size: ${totalRestaurants.length}`);
+  
+  return stats.verified;
 }
 
 if (import.meta.url.endsWith(process.argv[1])) {
-  expandVerifiedDatabase().catch(console.error);
+  expandSourdoughDatabase().catch(console.error);
 }
