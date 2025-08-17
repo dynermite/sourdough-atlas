@@ -10,11 +10,7 @@ import puppeteer from 'puppeteer';
 const SOURDOUGH_KEYWORDS = [
   'sourdough',
   'naturally leavened', 
-  'wild yeast',
-  'fermented dough',
-  'starter',
-  'long fermentation',
-  'fermented'
+  'wild yeast'
 ];
 
 interface VerificationResult {

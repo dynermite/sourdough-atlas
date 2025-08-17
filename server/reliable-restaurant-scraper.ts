@@ -26,14 +26,7 @@ export class ReliableRestaurantScraper {
   private readonly SOURDOUGH_KEYWORDS = [
     'sourdough',
     'naturally leavened', 
-    'wild yeast',
-    'fermented dough',
-    'starter',
-    'long fermentation',
-    'natural fermentation',
-    'levain',
-    'slow rise',
-    'artisan dough'
+    'wild yeast'
   ];
 
   private readonly USER_AGENTS = [

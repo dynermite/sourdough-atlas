@@ -21,11 +21,7 @@ export class ComprehensivePizzaScraper {
   private readonly sourdoughKeywords = [
     'sourdough',
     'naturally leavened', 
-    'wild yeast',
-    'fermented dough',
-    'starter',
-    'long fermentation',
-    'fermented'
+    'wild yeast'
   ];
 
   async scrapeAllPizzaRestaurants(city: string, state: string): Promise<number> {

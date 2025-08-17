@@ -70,7 +70,7 @@ The application features a comprehensive restaurant discovery system focused exc
 
 #### 4. Sourdough Verification Process
 All scrapers use strict restaurant-controlled content verification:
-- **Keywords**: "sourdough", "naturally leavened", "wild yeast", "fermented dough", "starter", "long fermentation"
+- **Keywords**: "sourdough", "naturally leavened", "wild yeast" (refined to exclude generic fermentation terms)
 - **Sources**: Only restaurant websites and Google Business profiles (never blogs, reviews, or third-party content)
 - **Confidence Scoring**: Weighted scoring based on keyword frequency and context from official sources
 - **Authenticity**: Ensures all sourdough claims come directly from restaurants themselves

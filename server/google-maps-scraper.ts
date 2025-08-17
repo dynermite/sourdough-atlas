@@ -30,15 +30,7 @@ export class GoogleMapsScraper {
   private readonly SOURDOUGH_KEYWORDS = [
     'sourdough',
     'naturally leavened',
-    'wild yeast',
-    'fermented dough',
-    'starter',
-    'long fermentation',
-    'natural fermentation',
-    'levain',
-    'slow rise',
-    'artisan dough',
-    'natural yeast'
+    'wild yeast'
   ];
 
   private browser?: puppeteer.Browser;
