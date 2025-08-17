@@ -1,161 +1,261 @@
 #!/usr/bin/env tsx
 
-import { OutscraperSourdoughDiscovery } from './outscraper-integration';
+import { db } from './db';
+import { restaurants } from '../shared/schema';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+import { eq } from 'drizzle-orm';
 
-// Strategic expansion plan - targeting cities with highest sourdough potential
-const TARGETED_EXPANSION_CITIES = [
-  // Phase 1: Expand current strong markets
-  { city: 'San Francisco', state: 'CA', reason: 'Strong existing base (5 restaurants) - find more' },
-  { city: 'Portland', state: 'OR', reason: 'Strong existing base (4 restaurants) - find more' },
-  { city: 'Austin', state: 'TX', reason: 'Strong existing base (6 restaurants) - find more' },
+const SOURDOUGH_KEYWORDS = ['sourdough', 'naturally leavened', 'wild yeast', 'naturally fermented'];
+
+// Focus on top sourdough cities with specific restaurants known to mention sourdough
+const TARGETED_RESTAURANTS = [
+  // San Francisco Bay Area - sourdough capital
+  { name: "Tony's Little Star Pizza", city: "San Francisco", state: "CA", website: "https://tonylittlestar.com" },
+  { name: "Escape from New York Pizza", city: "San Francisco", state: "CA", website: "https://escapefromnewyorkpizza.com" },
+  { name: "Golden Boy Pizza", city: "San Francisco", state: "CA", website: "https://goldenboyseafood.com" },
+  { name: "North Beach Pizza", city: "San Francisco", state: "CA", website: "https://northbeachpizza.com" },
+  { name: "Arinell Pizza", city: "Berkeley", state: "CA", website: "https://arinellpizza.com" },
   
-  // Phase 2: High-potential new markets
-  { city: 'Seattle', state: 'WA', reason: 'Strong sourdough culture, existing base (2 restaurants)' },
-  { city: 'Chicago', state: 'IL', reason: 'Large market, existing base (3 restaurants)' },
-  { city: 'Boston', state: 'MA', reason: 'Historical sourdough market, existing base (2 restaurants)' },
-  { city: 'Denver', state: 'CO', reason: 'Health-conscious market, artisan food scene' },
-  { city: 'Oakland', state: 'CA', reason: 'Bay Area extension, artisan community' },
-  { city: 'Brooklyn', state: 'NY', reason: 'Artisan pizza capital, existing base (2 restaurants)' },
-  { city: 'New York', state: 'NY', reason: 'Major market, existing base (1 restaurant)' },
+  // Portland artisan scene
+  { name: "Scottie's Pizza Parlor", city: "Portland", state: "OR", website: "https://scottiespizza.com" },
+  { name: "Sizzle Pie", city: "Portland", state: "OR", website: "https://sizzlepie.com" },
+  { name: "Ranch Pizza", city: "Portland", state: "OR", website: "https://ranchpizza.com" },
+  { name: "Baby Doll Pizza", city: "Portland", state: "OR", website: "https://babydollpizza.com" },
   
-  // Phase 3: Strategic expansion
-  { city: 'Washington', state: 'DC', reason: 'Educated demographic, food scene' },
-  { city: 'Minneapolis', state: 'MN', reason: 'Midwest sourdough culture' },
-  { city: 'Nashville', state: 'TN', reason: 'Growing food scene' },
-  { city: 'Atlanta', state: 'GA', reason: 'Major southeastern market' },
-  { city: 'Dallas', state: 'TX', reason: 'Texas expansion' },
-  { city: 'San Diego', state: 'CA', reason: 'California coastal market' },
+  // Seattle area
+  { name: "Pagliacci Pizza", city: "Seattle", state: "WA", website: "https://pagliacci.com" },
+  { name: "Zeeks Pizza", city: "Seattle", state: "WA", website: "https://zeekspizza.com" },
+  { name: "Delfino's Chicago Style Pizza", city: "Seattle", state: "WA", website: "https://delfinospizza.com" },
   
-  // Phase 4: Complete major market coverage
-  { city: 'Miami', state: 'FL', reason: 'Major coastal market' },
-  { city: 'Detroit', state: 'MI', reason: 'Traditional pizza market' },
-  { city: 'Baltimore', state: 'MD', reason: 'East coast coverage' },
-  { city: 'Milwaukee', state: 'WI', reason: 'Midwest expansion' },
-  { city: 'Salt Lake City', state: 'UT', reason: 'Mountain west coverage' }
+  // Brooklyn/NYC area
+  { name: "Joe's Pizza", city: "Brooklyn", state: "NY", website: "https://joespizza.com" },
+  { name: "Prince Street Pizza", city: "Manhattan", state: "NY", website: "https://princestpizza.com" },
+  { name: "Di Fara Pizza", city: "Brooklyn", state: "NY", website: "https://difarapizza.com" },
+  { name: "Keste Pizza & Vino", city: "Manhattan", state: "NY", website: "https://kestepizzeria.com" },
+  
+  // Boston area
+  { name: "Santarpio's Pizza", city: "Boston", state: "MA", website: "https://santarpios.com" },
+  { name: "Regina Pizzeria", city: "Boston", state: "MA", website: "https://reginapizzeria.com" },
+  { name: "Posto", city: "Cambridge", state: "MA", website: "https://postoboston.com" },
+  
+  // Austin artisan scene
+  { name: "Via 313", city: "Austin", state: "TX", website: "https://via313.com" },
+  { name: "East Side Pies", city: "Austin", state: "TX", website: "https://eastsidepies.com" },
+  { name: "Little Deli & Pizzeria", city: "Austin", state: "TX", website: "https://littledelipizza.com" },
+  
+  // Philadelphia
+  { name: "Villa di Roma", city: "Philadelphia", state: "PA", website: "https://villadiroma.com" },
+  { name: "Tacconelli's Pizzeria", city: "Philadelphia", state: "PA", website: "https://tacconellis.com" },
+  { name: "Santucci's Square Pizza", city: "Philadelphia", state: "PA", website: "https://santuccis.com" },
+  
+  // Denver/Boulder area
+  { name: "Beau Jo's Pizza", city: "Boulder", state: "CO", website: "https://beaujos.com" },
+  { name: "Proto's Pizza", city: "Denver", state: "CO", website: "https://protospizza.com" },
+  { name: "Fat Sully's Pizza", city: "Denver", state: "CO", website: "https://fatsullyspizza.com" },
+  
+  // Vermont artisan culture
+  { name: "American Flatbread", city: "Burlington", state: "VT", website: "https://americanflatbread.com" },
+  { name: "Folino's Wood Fired Pizza", city: "Burlington", state: "VT", website: "https://folinospizza.com" },
+  
+  // Asheville mountain culture
+  { name: "Pack's Tavern", city: "Asheville", state: "NC", website: "https://packstavern.com" },
+  { name: "Asheville Pizza & Brewing", city: "Asheville", state: "NC", website: "https://ashevillebrewing.com" }
 ];
 
-export async function runTargetedDiscovery() {
-  const apiKey = process.env.OUTSCRAPER_API_KEY;
-  
-  if (!apiKey) {
-    console.log('OUTSCRAPER_API_KEY required for targeted discovery');
-    return { error: 'Missing API key' };
-  }
+class TargetedDiscoverySystem {
+  private processed = 0;
+  private verified = 0;
+  private failed = 0;
 
-  console.log('🎯 TARGETED SOURDOUGH DISCOVERY - VERIFIED RESTAURANTS ONLY');
-  console.log('=' .repeat(65));
-  console.log('✅ Expanding verified directory with real establishments');
-  console.log(`📊 Processing ${TARGETED_EXPANSION_CITIES.length} strategic cities`);
-  console.log('🔍 Each restaurant verified through official sources');
-  
-  const discovery = new OutscraperSourdoughDiscovery();
-  let totalNewRestaurants = 0;
-  let citiesProcessed = 0;
-  let citiesFailed = 0;
-  const discoveryResults: any[] = [];
-
-  for (const targetCity of TARGETED_EXPANSION_CITIES) {
+  async verifyRestaurant(restaurant: {
+    name: string;
+    website: string;
+    city: string;
+    state: string;
+  }) {
+    this.processed++;
+    console.log(`\n[${this.processed}/${TARGETED_RESTAURANTS.length}] Verifying: ${restaurant.name}`);
+    
     try {
-      console.log(`\n[${citiesProcessed + 1}/${TARGETED_EXPANSION_CITIES.length}] 🏙️ ${targetCity.city}, ${targetCity.state}`);
-      console.log(`   Strategy: ${targetCity.reason}`);
+      // Check if already exists
+      const existing = await db.select().from(restaurants).where(eq(restaurants.name, restaurant.name));
+      if (existing.length > 0) {
+        console.log(`   Already verified in database`);
+        return false;
+      }
       
-      const startTime = Date.now();
-      const newRestaurants = await discovery.processOutscraperData(apiKey, targetCity.city, targetCity.state);
-      const duration = Math.round((Date.now() - startTime) / 1000);
+      console.log(`   Checking website: ${restaurant.website}`);
       
-      totalNewRestaurants += newRestaurants;
-      citiesProcessed++;
+      const response = await axios.get(restaurant.website, {
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+      });
       
-      const result = {
-        city: targetCity.city,
-        state: targetCity.state,
-        reason: targetCity.reason,
-        newRestaurants,
-        duration,
-        success: true
-      };
+      const $ = cheerio.load(response.data);
+      const content = $('body').text().toLowerCase();
       
-      discoveryResults.push(result);
+      // Check for approved sourdough keywords
+      const foundKeywords = SOURDOUGH_KEYWORDS.filter(keyword => 
+        content.includes(keyword.toLowerCase())
+      );
       
-      if (newRestaurants > 0) {
-        console.log(`   ✅ SUCCESS: Added ${newRestaurants} verified restaurants (${duration}s)`);
+      if (foundKeywords.length === 0) {
+        console.log(`   No approved sourdough keywords found`);
+        this.failed++;
+        return false;
+      }
+      
+      console.log(`   VERIFIED: [${foundKeywords.join(', ')}]`);
+      
+      // Extract description
+      let description = '';
+      const metaDesc = $('meta[name="description"]').attr('content');
+      if (metaDesc && metaDesc.length > 20) {
+        description = metaDesc;
       } else {
-        console.log(`   ⚠️  No new verified restaurants found (${duration}s)`);
+        $('p').each((_, el) => {
+          const text = $(el).text().trim();
+          if (text.length > 60 && (
+            text.toLowerCase().includes('pizza') || 
+            foundKeywords.some(keyword => text.toLowerCase().includes(keyword))
+          )) {
+            description = text.substring(0, 200) + '...';
+            return false;
+          }
+        });
       }
       
-      // Progress checkpoint every 5 cities
-      if (citiesProcessed % 5 === 0) {
-        console.log(`\n📊 CHECKPOINT - Progress Update:`);
-        console.log(`   Cities processed: ${citiesProcessed}/${TARGETED_EXPANSION_CITIES.length}`);
-        console.log(`   New restaurants added: ${totalNewRestaurants}`);
-        console.log(`   Success rate: ${((citiesProcessed / (citiesProcessed + citiesFailed)) * 100).toFixed(1)}%`);
+      // Get business data from API
+      const businessData = await this.getBusinessData(restaurant.name, restaurant.city, restaurant.state);
+      
+      // Add to database
+      await db.insert(restaurants).values({
+        name: restaurant.name,
+        address: businessData.address || '',
+        city: restaurant.city,
+        state: restaurant.state,
+        zipCode: '',
+        phone: businessData.phone || '',
+        website: restaurant.website,
+        description: description || `${restaurant.name} - verified sourdough pizza restaurant`,
+        sourdoughVerified: 1,
+        sourdoughKeywords: foundKeywords,
+        rating: businessData.rating || 0,
+        reviewCount: businessData.reviewCount || 0,
+        latitude: businessData.latitude || 0,
+        longitude: businessData.longitude || 0,
+        imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400"
+      });
+      
+      this.verified++;
+      console.log(`   ADDED TO DATABASE - Total: ${this.verified}`);
+      
+      if (businessData.address) {
+        console.log(`   Address: ${businessData.address}`);
       }
       
-      // Brief pause between requests
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      return true;
       
     } catch (error) {
-      citiesFailed++;
-      console.log(`   ❌ FAILED: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      
-      discoveryResults.push({
-        city: targetCity.city,
-        state: targetCity.state,
-        reason: targetCity.reason,
-        newRestaurants: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        success: false
-      });
+      console.log(`   Error: ${error.message}`);
+      this.failed++;
+      return false;
     }
   }
 
-  // Final comprehensive results
-  console.log('\n' + '='.repeat(65));
-  console.log('🎉 TARGETED DISCOVERY COMPLETE');
-  console.log('='.repeat(65));
+  async getBusinessData(name: string, city: string, state: string) {
+    const apiKey = process.env.OUTSCRAPER_API_KEY;
+    if (!apiKey) {
+      return { address: '', phone: '', rating: 0, reviewCount: 0, latitude: 0, longitude: 0 };
+    }
+    
+    try {
+      const query = `${name} ${city} ${state}`;
+      const response = await axios.get('https://api.outscraper.com/maps/search-v3', {
+        params: {
+          query,
+          limit: 1,
+          language: 'en',
+          region: 'US'
+        },
+        headers: {
+          'X-API-KEY': apiKey
+        }
+      });
+
+      if (response.data.status === 'Pending') {
+        await new Promise(resolve => setTimeout(resolve, 8000));
+        
+        const resultResponse = await axios.get(`https://api.outscraper.com/requests/${response.data.id}`, {
+          headers: {
+            'X-API-KEY': apiKey
+          }
+        });
+
+        if (resultResponse.data.status === 'Success' && resultResponse.data.data) {
+          const results = resultResponse.data.data;
+          if (results.length > 0) {
+            const business = results[0];
+            return {
+              address: business.address || '',
+              phone: business.phone || '',
+              rating: business.rating || 0,
+              reviewCount: business.reviews_count || 0,
+              latitude: business.latitude || 0,
+              longitude: business.longitude || 0
+            };
+          }
+        }
+      }
+      
+      return { address: '', phone: '', rating: 0, reviewCount: 0, latitude: 0, longitude: 0 };
+    } catch (error) {
+      return { address: '', phone: '', rating: 0, reviewCount: 0, latitude: 0, longitude: 0 };
+    }
+  }
+
+  getStats() {
+    return {
+      processed: this.processed,
+      verified: this.verified,
+      failed: this.failed,
+      successRate: this.processed > 0 ? ((this.verified / this.processed) * 100).toFixed(1) : '0'
+    };
+  }
+}
+
+export async function runTargetedDiscovery() {
+  console.log('🎯 TARGETED SOURDOUGH DISCOVERY');
+  console.log('=' .repeat(45));
+  console.log(`Processing ${TARGETED_RESTAURANTS.length} targeted restaurants`);
+  console.log(`Keywords: [${SOURDOUGH_KEYWORDS.join(', ')}]`);
+  console.log(`Focus: High-probability sourdough establishments`);
   
-  console.log(`📊 EXPANSION RESULTS:`);
-  console.log(`✅ Cities successfully processed: ${citiesProcessed}`);
-  console.log(`❌ Cities failed: ${citiesFailed}`);
-  console.log(`🍕 New verified restaurants added: ${totalNewRestaurants}`);
-  console.log(`🎯 Processing success rate: ${((citiesProcessed / TARGETED_EXPANSION_CITIES.length) * 100).toFixed(1)}%`);
+  const system = new TargetedDiscoverySystem();
   
-  console.log(`\n🏆 TOP PERFORMING CITIES:`);
-  discoveryResults
-    .filter(r => r.success && r.newRestaurants > 0)
-    .sort((a, b) => b.newRestaurants - a.newRestaurants)
-    .slice(0, 8)
-    .forEach(r => {
-      console.log(`   ${r.city}, ${r.state}: +${r.newRestaurants} restaurants`);
-    });
-  
-  console.log(`\n📈 DIRECTORY GROWTH:`);
-  console.log(`   Restaurants added this session: ${totalNewRestaurants}`);
-  console.log(`   Estimated total directory size: ${43 + totalNewRestaurants}+ restaurants`);
-  
-  if (totalNewRestaurants >= 50) {
-    console.log(`\n🌟 MAJOR MILESTONE: ${totalNewRestaurants} new verified restaurants!`);
-    console.log(`   Directory now approaching 100 restaurants`);
-  } else if (totalNewRestaurants >= 20) {
-    console.log(`\n🎯 SOLID PROGRESS: ${totalNewRestaurants} new verified restaurants`);
-    console.log(`   Building strong foundation for comprehensive coverage`);
+  for (const restaurant of TARGETED_RESTAURANTS) {
+    await system.verifyRestaurant(restaurant);
+    
+    // Respectful pause
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
   
-  console.log(`\n✅ VERIFIED DIRECTORY STATUS:`);
-  console.log(`   • All restaurants are confirmed real establishments`);
-  console.log(`   • Every entry verified through official sources`);
-  console.log(`   • Travelers can visit all listed locations`);
-  console.log(`   • Searchable by city and state`);
-  console.log(`   • Interactive map with verified markers`);
-  console.log(`   • Ready for continued systematic expansion`);
+  const stats = system.getStats();
   
-  return {
-    newRestaurants: totalNewRestaurants,
-    citiesProcessed,
-    citiesFailed,
-    discoveryResults,
-    estimatedTotal: 43 + totalNewRestaurants
-  };
+  console.log(`\n🎉 TARGETED DISCOVERY COMPLETE:`);
+  console.log(`   Restaurants checked: ${stats.processed}`);
+  console.log(`   Sourdough verified: ${stats.verified}`);
+  console.log(`   Failed verification: ${stats.failed}`);
+  console.log(`   Success rate: ${stats.successRate}%`);
+  
+  const totalRestaurants = await db.select().from(restaurants);
+  console.log(`   Total database size: ${totalRestaurants.length}`);
+  console.log(`   Progress: ${((totalRestaurants.length / 1000) * 100).toFixed(1)}% toward 1,000 goal`);
+  
+  return stats.verified;
 }
 
 if (import.meta.url.endsWith(process.argv[1])) {

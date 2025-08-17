@@ -1,275 +1,291 @@
 #!/usr/bin/env tsx
 
-import { OutscraperSourdoughDiscovery } from './outscraper-integration';
+import { db } from './db';
+import { restaurants } from '../shared/schema';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
+import { eq } from 'drizzle-orm';
 
-// Major US cities for comprehensive pizza discovery
-const majorUSCities = [
-  // Phase 1: Sourdough Strongholds
-  { city: 'San Francisco', state: 'CA', phase: 1, priority: 'High' },
-  { city: 'Portland', state: 'OR', phase: 1, priority: 'High' },
-  { city: 'Seattle', state: 'WA', phase: 1, priority: 'High' },
-  { city: 'Austin', state: 'TX', phase: 1, priority: 'High' },
-  { city: 'Brooklyn', state: 'NY', phase: 1, priority: 'High' },
+const SOURDOUGH_KEYWORDS = ['sourdough', 'naturally leavened', 'wild yeast', 'naturally fermented'];
+
+// Strategic nationwide approach - target cities with highest likelihood of sourdough culture
+const TARGET_CITIES = [
+  // West Coast sourdough strongholds
+  { city: "San Francisco", state: "CA", priority: "high" },
+  { city: "Berkeley", state: "CA", priority: "high" },
+  { city: "Oakland", state: "CA", priority: "high" },
+  { city: "Los Angeles", state: "CA", priority: "medium" },
+  { city: "San Diego", state: "CA", priority: "medium" },
+  { city: "Portland", state: "OR", priority: "high" },
+  { city: "Seattle", state: "WA", priority: "high" },
+  { city: "Eugene", state: "OR", priority: "medium" },
   
-  // Phase 2: Major Metro Areas
-  { city: 'New York', state: 'NY', phase: 2, priority: 'High' },
-  { city: 'Los Angeles', state: 'CA', phase: 2, priority: 'High' },
-  { city: 'Chicago', state: 'IL', phase: 2, priority: 'High' },
-  { city: 'Boston', state: 'MA', phase: 2, priority: 'High' },
-  { city: 'Denver', state: 'CO', phase: 2, priority: 'High' },
-  { city: 'Philadelphia', state: 'PA', phase: 2, priority: 'High' },
+  // Northeast artisan culture
+  { city: "Brooklyn", state: "NY", priority: "high" },
+  { city: "Manhattan", state: "NY", priority: "high" },
+  { city: "Philadelphia", state: "PA", priority: "high" },
+  { city: "Boston", state: "MA", priority: "high" },
+  { city: "Cambridge", state: "MA", priority: "high" },
+  { city: "Burlington", state: "VT", priority: "high" },
+  { city: "Montpelier", state: "VT", priority: "medium" },
   
-  // Phase 3: Secondary Markets
-  { city: 'Nashville', state: 'TN', phase: 3, priority: 'Medium' },
-  { city: 'Atlanta', state: 'GA', phase: 3, priority: 'Medium' },
-  { city: 'Phoenix', state: 'AZ', phase: 3, priority: 'Medium' },
-  { city: 'San Diego', state: 'CA', phase: 3, priority: 'Medium' },
-  { city: 'Tampa', state: 'FL', phase: 3, priority: 'Medium' },
-  { city: 'Miami', state: 'FL', phase: 3, priority: 'Medium' },
-  { city: 'Orlando', state: 'FL', phase: 3, priority: 'Medium' },
-  { city: 'Las Vegas', state: 'NV', phase: 3, priority: 'Medium' },
-  { city: 'Salt Lake City', state: 'UT', phase: 3, priority: 'Medium' },
-  { city: 'Minneapolis', state: 'MN', phase: 3, priority: 'Medium' },
+  // Midwest artisan cities
+  { city: "Chicago", state: "IL", priority: "medium" },
+  { city: "Madison", state: "WI", priority: "medium" },
+  { city: "Minneapolis", state: "MN", priority: "medium" },
+  { city: "Detroit", state: "MI", priority: "low" },
   
-  // Phase 4: Comprehensive Coverage
-  { city: 'Sacramento', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'San Jose', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'Oakland', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'Long Beach', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'Fresno', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'Mesa', state: 'AZ', phase: 4, priority: 'Low' },
-  { city: 'Virginia Beach', state: 'VA', phase: 4, priority: 'Low' },
-  { city: 'Atlanta', state: 'GA', phase: 4, priority: 'Low' },
-  { city: 'Colorado Springs', state: 'CO', phase: 4, priority: 'Low' },
-  { city: 'Raleigh', state: 'NC', phase: 4, priority: 'Low' },
-  { city: 'Omaha', state: 'NE', phase: 4, priority: 'Low' },
-  { city: 'Miami', state: 'FL', phase: 4, priority: 'Low' },
-  { city: 'Cleveland', state: 'OH', phase: 4, priority: 'Low' },
-  { city: 'Tulsa', state: 'OK', phase: 4, priority: 'Low' },
-  { city: 'Arlington', state: 'TX', phase: 4, priority: 'Low' },
-  { city: 'New Orleans', state: 'LA', phase: 4, priority: 'Low' },
-  { city: 'Wichita', state: 'KS', phase: 4, priority: 'Low' },
-  { city: 'Bakersfield', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'Tampa', state: 'FL', phase: 4, priority: 'Low' },
-  { city: 'Honolulu', state: 'HI', phase: 4, priority: 'Low' },
-  { city: 'Anaheim', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'Santa Ana', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'Corpus Christi', state: 'TX', phase: 4, priority: 'Low' },
-  { city: 'Riverside', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'Lexington', state: 'KY', phase: 4, priority: 'Low' },
-  { city: 'Stockton', state: 'CA', phase: 4, priority: 'Low' },
-  { city: 'Henderson', state: 'NV', phase: 4, priority: 'Low' },
-  { city: 'Saint Paul', state: 'MN', phase: 4, priority: 'Low' },
-  { city: 'Cincinnati', state: 'OH', phase: 4, priority: 'Low' },
-  { city: 'Pittsburgh', state: 'PA', phase: 4, priority: 'Low' }
+  // Southwest growing scenes
+  { city: "Austin", state: "TX", priority: "high" },
+  { city: "Denver", state: "CO", priority: "medium" },
+  { city: "Boulder", state: "CO", priority: "high" },
+  { city: "Santa Fe", state: "NM", priority: "medium" },
+  { city: "Phoenix", state: "AZ", priority: "low" },
+  
+  // Southeast emerging areas
+  { city: "Asheville", state: "NC", priority: "high" },
+  { city: "Atlanta", state: "GA", priority: "medium" },
+  { city: "Charleston", state: "SC", priority: "medium" },
+  { city: "Nashville", state: "TN", priority: "medium" },
+  { city: "New Orleans", state: "LA", priority: "medium" }
 ];
 
-export class NationwideDiscoverySystem {
-  private discovery: OutscraperSourdoughDiscovery;
-  
+class NationwideDiscoverySystem {
+  private apiKey: string;
+  private processed = 0;
+  private verified = 0;
+  private failed = 0;
+  private apiCallsUsed = 0;
+  private maxApiCalls = 90; // Stay under free limit
+
   constructor() {
-    this.discovery = new OutscraperSourdoughDiscovery();
+    this.apiKey = process.env.OUTSCRAPER_API_KEY || '';
   }
 
-  // Run comprehensive nationwide discovery
-  async runNationwideDiscovery(apiKey: string, targetPhase: number = 1): Promise<void> {
-    console.log('🇺🇸 NATIONWIDE SOURDOUGH PIZZA DISCOVERY SYSTEM');
-    console.log('=' .repeat(60));
+  async discoverInCity(cityData: { city: string; state: string; priority: string }) {
+    if (this.apiCallsUsed >= this.maxApiCalls) {
+      console.log(`⚠️  API limit reached (${this.maxApiCalls} calls)`);
+      return [];
+    }
+
+    console.log(`\n🔍 DISCOVERING: ${cityData.city}, ${cityData.state} (${cityData.priority} priority)`);
     
-    const targetCities = majorUSCities.filter(city => city.phase <= targetPhase);
-    console.log(`Phase ${targetPhase} Target: ${targetCities.length} cities`);
-    console.log(`Free API requests available: 100`);
-    console.log(`Estimated cost: $${(targetCities.length * 0.001).toFixed(3)}`);
+    try {
+      // Search for pizza restaurants in the city using Outscraper
+      const query = `pizza restaurant ${cityData.city} ${cityData.state}`;
+      
+      const response = await axios.get('https://api.outscraper.com/maps/search-v3', {
+        params: {
+          query,
+          limit: 15, // Get more restaurants per city
+          language: 'en',
+          region: 'US'
+        },
+        headers: {
+          'X-API-KEY': this.apiKey
+        },
+        timeout: 20000
+      });
+
+      this.apiCallsUsed++;
+      console.log(`   API calls used: ${this.apiCallsUsed}/${this.maxApiCalls}`);
+
+      if (response.data.status === 'Pending') {
+        console.log(`   Waiting for results...`);
+        
+        // Wait for results
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          
+          const resultResponse = await axios.get(`https://api.outscraper.com/requests/${response.data.id}`, {
+            headers: {
+              'X-API-KEY': this.apiKey
+            }
+          });
+
+          if (resultResponse.data.status === 'Success' && resultResponse.data.data) {
+            const results = resultResponse.data.data;
+            console.log(`   Found ${results.length} pizza restaurants`);
+            
+            return await this.processDiscoveredRestaurants(results, cityData);
+          }
+        }
+      }
+      
+      return [];
+      
+    } catch (error) {
+      console.log(`   Discovery error: ${error.message}`);
+      return [];
+    }
+  }
+
+  async processDiscoveredRestaurants(results: any[], cityData: { city: string; state: string }) {
+    const verified = [];
     
-    const results = {
-      totalCities: 0,
-      totalRestaurants: 0,
-      totalSourdoughRestaurants: 0,
-      cityResults: [] as any[]
-    };
-    
-    for (let i = 0; i < targetCities.length; i++) {
-      const cityData = targetCities[i];
-      console.log(`\n[${i + 1}/${targetCities.length}] 🏙️  ${cityData.city}, ${cityData.state}`);
-      console.log(`Phase ${cityData.phase} | Priority: ${cityData.priority}`);
+    for (const business of results) {
+      if (!business.name || !business.website) {
+        continue; // Skip businesses without websites
+      }
+      
+      this.processed++;
+      console.log(`\n   [${this.processed}] Checking: ${business.name}`);
       
       try {
-        const sourdoughCount = await this.discovery.processOutscraperData(
-          apiKey, 
-          cityData.city, 
-          cityData.state
-        );
+        // Check if already exists
+        const existing = await db.select().from(restaurants).where(eq(restaurants.name, business.name));
+        if (existing.length > 0) {
+          console.log(`     Already in database`);
+          continue;
+        }
         
-        const cityResult = {
-          city: cityData.city,
-          state: cityData.state,
-          phase: cityData.phase,
-          sourdoughRestaurants: sourdoughCount,
-          processed: true
-        };
+        // Verify sourdough on website
+        const isVerified = await this.verifyWebsite(business.website, business.name);
         
-        results.cityResults.push(cityResult);
-        results.totalCities++;
-        results.totalSourdoughRestaurants += sourdoughCount;
-        
-        console.log(`✅ ${cityData.city} complete: ${sourdoughCount} sourdough restaurants found`);
-        
-        // Rate limiting between cities
-        await this.delay(3000);
+        if (isVerified.verified) {
+          // Add to database
+          await db.insert(restaurants).values({
+            name: business.name,
+            address: business.address || '',
+            city: cityData.city,
+            state: cityData.state,
+            zipCode: business.postal_code || '',
+            phone: business.phone || '',
+            website: business.website,
+            description: business.description || `${business.name} - verified sourdough pizza restaurant`,
+            sourdoughVerified: 1,
+            sourdoughKeywords: isVerified.keywords,
+            rating: business.rating || 0,
+            reviewCount: business.reviews_count || 0,
+            latitude: business.latitude || 0,
+            longitude: business.longitude || 0,
+            imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400"
+          });
+          
+          this.verified++;
+          console.log(`     ✅ VERIFIED & ADDED - Total: ${this.verified}`);
+          console.log(`     Keywords: [${isVerified.keywords.join(', ')}]`);
+          
+          if (business.address) {
+            console.log(`     Address: ${business.address}`);
+          }
+          
+          verified.push(business);
+        } else {
+          this.failed++;
+          console.log(`     ❌ No sourdough keywords found`);
+        }
         
       } catch (error) {
-        console.log(`❌ Error processing ${cityData.city}: ${error.message}`);
-        
-        results.cityResults.push({
-          city: cityData.city,
-          state: cityData.state,
-          phase: cityData.phase,
-          sourdoughRestaurants: 0,
-          processed: false,
-          error: error.message
-        });
+        console.log(`     Error: ${error.message}`);
+        this.failed++;
       }
-    }
-    
-    this.displayNationwideResults(results);
-  }
-
-  // Display comprehensive results
-  private displayNationwideResults(results: any): void {
-    console.log(`\n${'=' .repeat(60)}`);
-    console.log('🎉 NATIONWIDE DISCOVERY COMPLETE');
-    console.log(`${'=' .repeat(60)}`);
-    
-    console.log(`\n📊 SUMMARY STATISTICS:`);
-    console.log(`Cities processed: ${results.totalCities}`);
-    console.log(`Total sourdough restaurants found: ${results.totalSourdoughRestaurants}`);
-    console.log(`Average per city: ${(results.totalSourdoughRestaurants / results.totalCities).toFixed(1)}`);
-    
-    console.log(`\n🏆 TOP PERFORMING CITIES:`);
-    const topCities = results.cityResults
-      .filter(r => r.processed)
-      .sort((a, b) => b.sourdoughRestaurants - a.sourdoughRestaurants)
-      .slice(0, 10);
-    
-    topCities.forEach((city, index) => {
-      console.log(`${index + 1}. ${city.city}, ${city.state}: ${city.sourdoughRestaurants} restaurants`);
-    });
-    
-    console.log(`\n📈 RESULTS BY PHASE:`);
-    [1, 2, 3, 4].forEach(phase => {
-      const phaseResults = results.cityResults.filter(r => r.phase === phase && r.processed);
-      const phaseTotal = phaseResults.reduce((sum, r) => sum + r.sourdoughRestaurants, 0);
       
-      if (phaseResults.length > 0) {
-        console.log(`Phase ${phase}: ${phaseResults.length} cities, ${phaseTotal} restaurants (avg: ${(phaseTotal / phaseResults.length).toFixed(1)})`);
-      }
-    });
+      // Respectful pause between verifications
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
     
-    if (results.cityResults.some(r => !r.processed)) {
-      console.log(`\n⚠️  FAILED CITIES:`);
-      results.cityResults.filter(r => !r.processed).forEach(city => {
-        console.log(`❌ ${city.city}, ${city.state}: ${city.error}`);
+    return verified;
+  }
+
+  async verifyWebsite(website: string, name: string): Promise<{ verified: boolean; keywords: string[] }> {
+    try {
+      const response = await axios.get(website, {
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
       });
+      
+      const $ = cheerio.load(response.data);
+      const content = $('body').text().toLowerCase();
+      
+      // Check for approved sourdough keywords
+      const foundKeywords = SOURDOUGH_KEYWORDS.filter(keyword => 
+        content.includes(keyword.toLowerCase())
+      );
+      
+      return {
+        verified: foundKeywords.length > 0,
+        keywords: foundKeywords
+      };
+      
+    } catch (error) {
+      return { verified: false, keywords: [] };
     }
   }
 
-  // Run specific phase
-  async runPhase(apiKey: string, phase: number): Promise<void> {
-    console.log(`🎯 Running Phase ${phase} Discovery`);
-    
-    const phaseMap = {
-      1: 'Sourdough Strongholds',
-      2: 'Major Metro Areas', 
-      3: 'Secondary Markets',
-      4: 'Comprehensive Coverage'
+  getStats() {
+    return {
+      processed: this.processed,
+      verified: this.verified,
+      failed: this.failed,
+      apiCallsUsed: this.apiCallsUsed,
+      successRate: this.processed > 0 ? ((this.verified / this.processed) * 100).toFixed(1) : '0'
     };
-    
-    console.log(`Focus: ${phaseMap[phase] || 'Unknown Phase'}`);
-    await this.runNationwideDiscovery(apiKey, phase);
-  }
-
-  // Run single city for testing
-  async runSingleCity(apiKey: string, cityName: string, stateName: string): Promise<void> {
-    console.log(`🏙️  Single City Discovery: ${cityName}, ${stateName}`);
-    
-    const sourdoughCount = await this.discovery.processOutscraperData(apiKey, cityName, stateName);
-    
-    console.log(`\n✅ ${cityName} Discovery Complete`);
-    console.log(`Sourdough restaurants found: ${sourdoughCount}`);
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  // Display city list for planning
-  displayCityList(): void {
-    console.log('🗺️  NATIONWIDE DISCOVERY CITY LIST');
-    console.log('=' .repeat(50));
-    
-    [1, 2, 3, 4].forEach(phase => {
-      const phaseCities = majorUSCities.filter(city => city.phase === phase);
-      
-      console.log(`\nPhase ${phase}: ${phaseCities.length} cities`);
-      phaseCities.forEach(city => {
-        console.log(`  ${city.city}, ${city.state} (${city.priority})`);
-      });
-    });
-    
-    console.log(`\nTotal cities: ${majorUSCities.length}`);
-    console.log(`Free API requests needed: ${majorUSCities.length}`);
-    console.log(`Estimated total cost: $${(majorUSCities.length * 0.001).toFixed(2)}`);
   }
 }
 
-// Main execution
-async function main() {
-  const system = new NationwideDiscoverySystem();
+export async function executeNationwideDiscovery() {
+  console.log('🌎 NATIONWIDE SOURDOUGH DISCOVERY SYSTEM');
+  console.log('=' .repeat(60));
+  console.log(`🎯 Targeting ${TARGET_CITIES.length} strategic cities`);
+  console.log(`✅ Keywords: [${SOURDOUGH_KEYWORDS.join(', ')}]`);
+  console.log(`🔍 Systematic restaurant discovery with website verification`);
+  console.log(`📊 Goal: Build toward 1,000+ verified restaurants`);
   
-  const command = process.argv[2];
-  const apiKey = process.env.OUTSCRAPER_API_KEY;
+  const discoverySystem = new NationwideDiscoverySystem();
   
-  if (!apiKey) {
-    console.log('❌ OUTSCRAPER_API_KEY environment variable required');
-    console.log('Get your free API key from outscraper.com');
-    return;
+  // Process high priority cities first
+  const highPriority = TARGET_CITIES.filter(city => city.priority === 'high');
+  const mediumPriority = TARGET_CITIES.filter(city => city.priority === 'medium');
+  
+  console.log(`\n🚀 PHASE 1: HIGH PRIORITY CITIES (${highPriority.length})`);
+  
+  for (const cityData of highPriority) {
+    const discovered = await discoverySystem.discoverInCity(cityData);
+    
+    if (discoverySystem.getStats().apiCallsUsed >= 90) {
+      console.log(`\n⚠️  API limit approached, stopping discovery`);
+      break;
+    }
+    
+    // Pause between cities to be respectful
+    await new Promise(resolve => setTimeout(resolve, 5000));
   }
   
-  switch (command) {
-    case 'list':
-      system.displayCityList();
-      break;
+  // Continue with medium priority if API calls remaining
+  if (discoverySystem.getStats().apiCallsUsed < 85) {
+    console.log(`\n🚀 PHASE 2: MEDIUM PRIORITY CITIES`);
+    
+    for (const cityData of mediumPriority.slice(0, 5)) { // Limit to 5 medium priority
+      const discovered = await discoverySystem.discoverInCity(cityData);
       
-    case 'phase1':
-      await system.runPhase(apiKey, 1);
-      break;
-      
-    case 'phase2':
-      await system.runPhase(apiKey, 2);
-      break;
-      
-    case 'single':
-      const city = process.argv[3];
-      const state = process.argv[4];
-      if (city && state) {
-        await system.runSingleCity(apiKey, city, state);
-      } else {
-        console.log('Usage: tsx nationwide-discovery.ts single "City Name" "State"');
+      if (discoverySystem.getStats().apiCallsUsed >= 90) {
+        console.log(`\n⚠️  API limit reached, stopping`);
+        break;
       }
-      break;
       
-    default:
-      console.log('🚀 NATIONWIDE SOURDOUGH DISCOVERY SYSTEM');
-      console.log('\nCommands:');
-      console.log('  list     - Show all cities in discovery plan');
-      console.log('  phase1   - Run Phase 1 (5 stronghold cities)');
-      console.log('  phase2   - Run Phase 1 + 2 (11 major cities)');
-      console.log('  single   - Run single city test');
-      console.log('\nExamples:');
-      console.log('  tsx nationwide-discovery.ts list');
-      console.log('  tsx nationwide-discovery.ts phase1');
-      console.log('  tsx nationwide-discovery.ts single "San Francisco" "CA"');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
   }
+  
+  const finalStats = discoverySystem.getStats();
+  
+  console.log(`\n🎉 NATIONWIDE DISCOVERY COMPLETE:`);
+  console.log(`   🏪 Restaurants processed: ${finalStats.processed}`);
+  console.log(`   ✅ Sourdough verified: ${finalStats.verified}`);
+  console.log(`   ❌ Failed verification: ${finalStats.failed}`);
+  console.log(`   📈 Success rate: ${finalStats.successRate}%`);
+  console.log(`   🔧 API calls used: ${finalStats.apiCallsUsed}/100 (free tier)`);
+  
+  const totalRestaurants = await db.select().from(restaurants);
+  console.log(`   📊 Total database size: ${totalRestaurants.length} restaurants`);
+  console.log(`   🎯 Progress toward 1,000+ goal: ${((totalRestaurants.length / 1000) * 100).toFixed(1)}%`);
+  
+  return finalStats.verified;
 }
 
-main().catch(console.error);
+if (import.meta.url.endsWith(process.argv[1])) {
+  executeNationwideDiscovery().catch(console.error);
+}
