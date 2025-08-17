@@ -157,7 +157,7 @@ const VERIFIED_SOURDOUGH_RESTAURANTS = [
 ];
 
 class VerifiedSourdoughBuilder {
-  private sourdoughKeywords = ['sourdough', 'naturally leavened', 'wild yeast', 'starter', 'fermented'];
+  private sourdoughKeywords = ['sourdough', 'naturally leavened', 'wild yeast', 'naturally fermented'];
   private processed = 0;
   private verified = 0;
 

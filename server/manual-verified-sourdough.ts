@@ -53,7 +53,7 @@ const KNOWN_SOURDOUGH_RESTAURANTS = [
 ];
 
 class ManualVerifiedBuilder {
-  private sourdoughKeywords = ['sourdough', 'naturally leavened', 'wild yeast'];
+  private sourdoughKeywords = ['sourdough', 'naturally leavened', 'wild yeast', 'naturally fermented'];
 
   async verifyAndAddRestaurant(restaurant: {
     name: string;

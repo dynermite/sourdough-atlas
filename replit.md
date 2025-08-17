@@ -4,7 +4,7 @@
 
 SourDough Scout is a comprehensive full-stack web application that helps users discover authentic sourdough pizza restaurants across America. The application features an interactive map, search functionality, and detailed restaurant information, making it perfect for travelers seeking naturally leavened pizza on the road.
 
-**Current Status**: Database rebuilt from ground up after comprehensive verification audit revealed unverified entries. Now contains only manually verified sourdough restaurants with confirmed claims on official websites. Every entry is 100% authentic and verified through restaurant's own sources. Foundation established for careful, verified expansion toward 1,000+ restaurant goal.
+**Current Status**: Database rebuilt from ground up with corrected keyword verification system. Uses ONLY 4 approved keywords: "sourdough", "naturally leavened", "wild yeast", "naturally fermented". Previous "fermented" keyword removed from all verification systems. Foundation established with properly verified restaurants using correct sourdough terminology.
 
 ## User Preferences
 
@@ -70,10 +70,10 @@ The application features a comprehensive restaurant discovery system focused exc
 
 #### 4. Sourdough Verification Process
 All scrapers use strict restaurant-controlled content verification:
-- **Keywords**: "sourdough", "naturally leavened", "wild yeast" (refined to exclude generic fermentation terms)
-- **Sources**: Only restaurant websites and Google Business profiles (never blogs, reviews, or third-party content)
-- **Confidence Scoring**: Weighted scoring based on keyword frequency and context from official sources
-- **Authenticity**: Ensures all sourdough claims come directly from restaurants themselves
+- **Keywords**: ONLY 4 approved terms: "sourdough", "naturally leavened", "wild yeast", "naturally fermented"
+- **Sources**: Only restaurant websites and Google Business profiles (never blogs, reviews, or third-party content)  
+- **Keyword Enforcement**: System rejects any other fermentation terms to maintain sourdough specificity
+- **Authenticity**: Ensures all sourdough claims come directly from restaurants themselves using precise terminology
 
 ### Data Storage Solutions
 The application uses a **PostgreSQL** database with Drizzle ORM:

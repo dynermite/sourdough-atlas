@@ -19,7 +19,7 @@ interface RestaurantResult {
 
 class FullNationwideDiscovery {
   private apiKey: string;
-  private sourdoughKeywords = ['sourdough', 'naturally leavened', 'wild yeast'];
+  private sourdoughKeywords = ['sourdough', 'naturally leavened', 'wild yeast', 'naturally fermented'];
 
   constructor() {
     this.apiKey = process.env.OUTSCRAPER_API_KEY || '';
