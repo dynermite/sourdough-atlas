@@ -5,7 +5,7 @@ import { restaurants } from '../shared/schema';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-interface OutscraperResult {
+interface OutscraperAsyncResult {
   name: string;
   address: string;
   phone: string;
@@ -16,49 +16,70 @@ interface OutscraperResult {
   longitude: number;
   description: string;
   category: string[];
+  reviews: string[];
 }
 
-class OutscraperIntegration {
+class OutscraperAsyncHandler {
   private apiKey: string;
   private sourdoughKeywords = ['sourdough', 'naturally leavened', 'wild yeast'];
 
   constructor() {
     this.apiKey = process.env.OUTSCRAPER_API_KEY || '';
-    if (!this.apiKey) {
-      console.log('⚠️  OUTSCRAPER_API_KEY not found in environment');
-      console.log('📋 To get authentic restaurant data:');
-      console.log('   1. Visit https://outscraper.com/');
-      console.log('   2. Sign up for free account (100 requests included)');
-      console.log('   3. Add OUTSCRAPER_API_KEY to environment');
-    }
   }
 
-  async searchPizzaRestaurants(city: string, state: string): Promise<OutscraperResult[]> {
-    if (!this.apiKey) {
-      console.log(`❌ Cannot search ${city}, ${state} - API key required`);
-      return [];
-    }
-
+  async submitSearch(query: string): Promise<string | null> {
     try {
-      const query = `pizza restaurants in ${city}, ${state}`;
-      console.log(`🔍 Searching: ${query}`);
+      console.log(`🔍 Submitting search: ${query}`);
       
       const response = await axios.get('https://api.outscraper.com/maps/search-v3', {
         params: {
           query,
           limit: 50,
           language: 'en',
-          region: 'US'
+          region: 'US',
+          fields: 'name,address,phone,website,rating,reviews_count,latitude,longitude,description,category'
         },
         headers: {
           'X-API-KEY': this.apiKey
         }
       });
 
-      return response.data.data || [];
+      if (response.data.status === 'Pending') {
+        console.log(`✅ Request submitted, ID: ${response.data.id}`);
+        return response.data.id;
+      }
+      
+      return null;
       
     } catch (error) {
-      console.log(`❌ Outscraper API error: ${error.message}`);
+      console.log(`❌ Search submission failed: ${error.message}`);
+      return null;
+    }
+  }
+
+  async fetchResults(requestId: string): Promise<OutscraperAsyncResult[]> {
+    try {
+      console.log(`📥 Fetching results for: ${requestId}`);
+      
+      const response = await axios.get(`https://api.outscraper.com/requests/${requestId}`, {
+        headers: {
+          'X-API-KEY': this.apiKey
+        }
+      });
+
+      if (response.data.status === 'Success' && response.data.data) {
+        console.log(`✅ Results ready: ${response.data.data.length} restaurants`);
+        return response.data.data;
+      } else if (response.data.status === 'Pending') {
+        console.log(`⏳ Results still pending...`);
+        return [];
+      } else {
+        console.log(`❌ Request failed:`, response.data);
+        return [];
+      }
+      
+    } catch (error) {
+      console.log(`❌ Results fetch failed: ${error.message}`);
       return [];
     }
   }
@@ -90,7 +111,7 @@ class OutscraperIntegration {
         content.includes(keyword.toLowerCase())
       );
       
-      // Get authentic description from meta tag or first paragraph
+      // Extract authentic description
       let description = '';
       const metaDesc = $('meta[name="description"]').attr('content');
       if (metaDesc && metaDesc.length > 20) {
@@ -107,7 +128,7 @@ class OutscraperIntegration {
       return {
         verified: foundKeywords.length > 0,
         keywords: foundKeywords,
-        description: description || `${name} restaurant`
+        description: description || `${name} - verified restaurant`
       };
       
     } catch (error) {
@@ -116,28 +137,55 @@ class OutscraperIntegration {
     }
   }
 
-  async discoverAndVerifyCity(city: string, state: string) {
-    console.log(`\n🏙️  DISCOVERING: ${city}, ${state}`);
+  async processSearchResults(searchQuery: string, city: string, state: string) {
+    console.log(`\n🏙️  PROCESSING: ${city}, ${state}`);
     console.log('=' .repeat(50));
     
-    if (!this.apiKey) {
-      console.log('❌ API key required for authentic data discovery');
+    // Submit search request
+    const requestId = await this.submitSearch(searchQuery);
+    if (!requestId) {
+      console.log('❌ Failed to submit search request');
       return { found: 0, verified: 0 };
     }
 
-    // Get real restaurant data from Outscraper
-    const restaurants = await this.searchPizzaRestaurants(city, state);
-    console.log(`📊 Found ${restaurants.length} pizza restaurants`);
-    
+    // Wait for results (Outscraper typically takes 30-60 seconds)
+    console.log('⏳ Waiting for results (30-60 seconds)...');
+    let results: OutscraperAsyncResult[] = [];
+    let attempts = 0;
+    const maxAttempts = 6; // 6 attempts * 15 seconds = 90 seconds max wait
+
+    while (attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, 15000)); // Wait 15 seconds
+      results = await this.fetchResults(requestId);
+      
+      if (results.length > 0) {
+        break;
+      }
+      
+      attempts++;
+      console.log(`⏳ Attempt ${attempts}/${maxAttempts}, still waiting...`);
+    }
+
+    if (results.length === 0) {
+      console.log('❌ No results received after waiting');
+      return { found: 0, verified: 0 };
+    }
+
+    console.log(`📊 Processing ${results.length} restaurants`);
     let verified = 0;
     
-    for (const restaurant of restaurants) {
+    for (const restaurant of results) {
+      if (!restaurant.name) {
+        console.log(`⏭️  Skipping restaurant (no name provided)`);
+        continue;
+      }
+      
       if (!restaurant.website) {
         console.log(`⏭️  Skipping ${restaurant.name} (no website)`);
         continue;
       }
       
-      // Verify sourdough claims on restaurant's official website
+      // Verify sourdough claims
       const verification = await this.verifyWebsiteForSourdough(
         restaurant.name, 
         restaurant.website
@@ -156,15 +204,16 @@ class OutscraperIntegration {
           address: restaurant.address,
           city: city,
           state: state,
-          phone: restaurant.phone,
+          zipCode: '', // Will be extracted from address if needed
+          phone: restaurant.phone || '',
           website: restaurant.website,
           description: verification.description,
           sourdoughVerified: 1,
           sourdoughKeywords: verification.keywords,
-          rating: restaurant.rating,
-          reviewCount: restaurant.reviews_count,
-          latitude: restaurant.latitude,
-          longitude: restaurant.longitude,
+          rating: restaurant.rating || 0,
+          reviewCount: restaurant.reviews_count || 0,
+          latitude: restaurant.latitude || 0,
+          longitude: restaurant.longitude || 0,
           imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400"
         });
         
@@ -177,31 +226,30 @@ class OutscraperIntegration {
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
     
-    return { found: restaurants.length, verified };
+    return { found: results.length, verified };
   }
 }
 
-export async function discoverAuthenticSourdough() {
-  console.log('🔍 AUTHENTIC SOURDOUGH DISCOVERY SYSTEM');
+export async function runAuthenticPizzaDiscovery() {
+  console.log('🔍 AUTHENTIC PIZZA DISCOVERY WITH OUTSCRAPER');
   console.log('=' .repeat(55));
   console.log('✅ Using Outscraper API for real business data');
   console.log('✅ Verifying sourdough claims on official websites');
-  console.log('🚫 No fabricated information will be added');
+  console.log('🚫 No fabricated information');
   
-  const integration = new OutscraperIntegration();
+  const handler = new OutscraperAsyncHandler();
   
   // Start with high-probability sourdough cities
-  const priorityCities = [
-    { city: 'San Francisco', state: 'CA' },
-    { city: 'Berkeley', state: 'CA' },
-    { city: 'Portland', state: 'OR' }
+  const searches = [
+    { query: 'pizza restaurants in San Francisco, CA', city: 'San Francisco', state: 'CA' },
+    { query: 'pizza restaurants in Berkeley, CA', city: 'Berkeley', state: 'CA' }
   ];
   
   let totalFound = 0;
   let totalVerified = 0;
   
-  for (const location of priorityCities) {
-    const results = await integration.discoverAndVerifyCity(location.city, location.state);
+  for (const search of searches) {
+    const results = await handler.processSearchResults(search.query, search.city, search.state);
     totalFound += results.found;
     totalVerified += results.verified;
   }
@@ -215,5 +263,5 @@ export async function discoverAuthenticSourdough() {
 }
 
 if (import.meta.url.endsWith(process.argv[1])) {
-  discoverAuthenticSourdough().catch(console.error);
+  runAuthenticPizzaDiscovery().catch(console.error);
 }

@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { insertRestaurantSchema } from "@shared/schema";
 import { registerScrapeRoutes } from "./scrape-routes";
 import { z } from "zod";
-import { OutscraperSourdoughDiscovery } from "./outscraper-integration";
+import { discoverAuthenticSourdough } from "./outscraper-integration";
 
 // Helper function to trigger area discovery
 async function triggerAreaDiscovery(bounds: { north: number; south: number; east: number; west: number; zoom: number }) {
