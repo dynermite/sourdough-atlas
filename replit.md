@@ -4,7 +4,7 @@
 
 SourDough Scout is a comprehensive full-stack web application that helps users discover authentic sourdough pizza restaurants across America. The application features an interactive map, search functionality, and detailed restaurant information, making it perfect for travelers seeking naturally leavened pizza on the road.
 
-**Current Status**: Database rebuilt from ground up with corrected keyword verification system. Uses ONLY 4 approved keywords: "sourdough", "naturally leavened", "wild yeast", "naturally fermented". Previous "fermented" keyword removed from all verification systems. Foundation established with properly verified restaurants using correct sourdough terminology.
+**Current Status**: Enhanced comprehensive discovery system with two-phase search strategy. Implemented user-suggested improvement: Phase 1 finds ALL pizza restaurants via broad searches, Phase 2 verifies sourdough claims, Phase 3 performs targeted sourdough searches. Enhanced keyword matching now catches hyphenated variations like "sourdough-crust". Currently verified 7 authentic sourdough establishments in San Francisco with 100% authentic data sources.
 
 ## User Preferences
 
