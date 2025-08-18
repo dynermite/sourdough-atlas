@@ -1,115 +1,74 @@
-import { db } from "./db";
-import { restaurants } from "@shared/schema";
-import { eq } from "drizzle-orm";
+#!/usr/bin/env tsx
 
-// Add proper coordinates for Portland restaurants
-const portlandRestaurants = [
-  { name: "Ken's Artisan Pizza", lat: 45.5152, lng: -122.6784 },
-  { name: "Lovely's Fifty Fifty", lat: 45.5424, lng: -122.6530 },
-  { name: "Apizza Scholls", lat: 45.4695, lng: -122.6689 },
-  { name: "Pizza Jerk", lat: 45.5152, lng: -122.6445 },
-  { name: "Dove Vivi Pizza", lat: 45.5376, lng: -122.6585 },
-  { name: "Scottie's Pizza Parlor", lat: 45.5152, lng: -122.6534 },
-  { name: "Nostrana", lat: 45.5051, lng: -122.6540 },
-  { name: "Pizzicato Gourmet Pizza", lat: 45.5152, lng: -122.6789 },
-  { name: "Baby Doll Pizza", lat: 45.5420, lng: -122.6634 },
-  { name: "Hotlips Pizza", lat: 45.5152, lng: -122.6445 },
-  { name: "Sizzle Pie", lat: 45.5230, lng: -122.6587 },
-  { name: "Portland House of Pizza", lat: 45.5152, lng: -122.6234 },
-  { name: "Antonio's Flying Pizza", lat: 45.5342, lng: -122.6756 }
+import { db } from './db';
+import { restaurants } from '../shared/schema';
+import { eq } from 'drizzle-orm';
+
+// Fix coordinates and addresses for SF establishments with missing data
+const COORDINATE_FIXES = [
+  {
+    name: "The Mill",
+    address: "736 Divisadero St, San Francisco, CA 94117",
+    latitude: 37.7757,
+    longitude: -122.4376,
+    state: "California",
+    zipCode: "94117"
+  },
+  {
+    name: "Boudin Bakery",
+    address: "160 Jefferson St, San Francisco, CA 94133",
+    latitude: 37.8081,
+    longitude: -122.4147,
+    state: "California", 
+    zipCode: "94133"
+  }
 ];
 
-// Add proper coordinates for San Francisco restaurants  
-const sfRestaurants = [
-  { name: "Tony's Little Star Pizza", lat: 37.7749, lng: -122.4194 },
-  { name: "Flour + Water", lat: 37.7599, lng: -122.4148 },
-  { name: "Arizmendi Bakery", lat: 37.7629, lng: -122.4664 },
-  { name: "Goat Hill Pizza", lat: 37.7587, lng: -122.3920 },
-  { name: "Gusto Pinsa Romana", lat: 37.7849, lng: -122.4194 }
-];
-
-// Add coordinates for other cities
-const otherCityRestaurants = [
-  // Seattle restaurants
-  { name: "Serious Pie", lat: 47.6097, lng: -122.3331 },
-  { name: "Via Tribunali", lat: 47.6205, lng: -122.3493 },
+export async function fixSFCoordinates() {
+  console.log('🔧 FIXING SAN FRANCISCO RESTAURANT COORDINATES');
+  console.log('=' .repeat(55));
   
-  // Chicago restaurants  
-  { name: "Spacca Napoli", lat: 41.8781, lng: -87.6298 },
-  { name: "Pequod's Pizza", lat: 41.9200, lng: -87.6687 },
-  
-  // Austin restaurants
-  { name: "Via 313", lat: 30.2672, lng: -97.7431 },
-  { name: "Home Slice Pizza", lat: 30.2672, lng: -97.7431 },
-  
-  // Denver restaurant
-  { name: "Sourdough Ridge Pizzeria", lat: 39.7392, lng: -104.9903 },
-  
-  // New York restaurant  
-  { name: "Roberta's", lat: 40.7282, lng: -73.9442 },
-  
-  // Remaining Portland restaurants that might need coordinates
-  { name: "Pizzicato Gourmet Pizza", lat: 45.5152, lng: -122.6789 },
-  { name: "Baby Doll Pizza", lat: 45.5420, lng: -122.6634 },
-  { name: "Hotlips Pizza", lat: 45.5152, lng: -122.6445 }
-];
-
-async function fixCoordinates() {
-  console.log('Fixing restaurant coordinates...');
-  
-  // Update Portland restaurants
-  for (const restaurant of portlandRestaurants) {
+  for (const fix of COORDINATE_FIXES) {
     try {
+      console.log(`\n📍 Updating: ${fix.name}`);
+      console.log(`   Address: ${fix.address}`);
+      console.log(`   Coordinates: ${fix.latitude}, ${fix.longitude}`);
+      
       const result = await db
         .update(restaurants)
-        .set({ 
-          latitude: restaurant.lat, 
-          longitude: restaurant.lng 
+        .set({
+          address: fix.address,
+          latitude: fix.latitude,
+          longitude: fix.longitude,
+          state: fix.state,
+          zipCode: fix.zipCode
         })
-        .where(eq(restaurants.name, restaurant.name));
-      console.log(`Updated coordinates for ${restaurant.name}`);
+        .where(eq(restaurants.name, fix.name));
+      
+      console.log(`   ✅ Updated successfully`);
+      
     } catch (error) {
-      console.log(`Could not update ${restaurant.name}:`, error);
+      console.log(`   ❌ Error updating ${fix.name}: ${error.message}`);
     }
   }
   
-  // Update San Francisco restaurants
-  for (const restaurant of sfRestaurants) {
-    try {
-      const result = await db
-        .update(restaurants)
-        .set({ 
-          latitude: restaurant.lat, 
-          longitude: restaurant.lng 
-        })
-        .where(eq(restaurants.name, restaurant.name));
-      console.log(`Updated coordinates for ${restaurant.name}`);
-    } catch (error) {
-      console.log(`Could not update ${restaurant.name}:`, error);
-    }
-  }
+  // Show all SF restaurants after fixes
+  console.log(`\n🌉 SAN FRANCISCO RESTAURANTS AFTER COORDINATE FIX:`);
+  const sfRestaurants = await db.select().from(restaurants).where(eq(restaurants.city, 'San Francisco'));
   
-  // Update other city restaurants
-  for (const restaurant of otherCityRestaurants) {
-    try {
-      const result = await db
-        .update(restaurants)
-        .set({ 
-          latitude: restaurant.lat, 
-          longitude: restaurant.lng 
-        })
-        .where(eq(restaurants.name, restaurant.name));
-      console.log(`Updated coordinates for ${restaurant.name}`);
-    } catch (error) {
-      console.log(`Could not update ${restaurant.name}:`, error);
-    }
-  }
+  sfRestaurants.forEach((restaurant, index) => {
+    console.log(`\n${index + 1}. ${restaurant.name}`);
+    console.log(`   📍 ${restaurant.address}`);
+    console.log(`   🗺️  Coordinates: ${restaurant.latitude}, ${restaurant.longitude}`);
+    console.log(`   🔍 Keywords: [${restaurant.sourdoughKeywords?.join(', ') || 'sourdough'}]`);
+    console.log(`   🌐 ${restaurant.website || 'No website'}`);
+    console.log(`   ⭐ Rating: ${restaurant.rating || 'No rating'} (${restaurant.reviewCount || 0} reviews)`);
+  });
   
-  console.log('Coordinate fixing complete!');
+  console.log(`\n✅ All ${sfRestaurants.length} San Francisco restaurants now have proper coordinates`);
+  return sfRestaurants.length;
 }
 
 if (import.meta.url.endsWith(process.argv[1])) {
-  fixCoordinates();
+  fixSFCoordinates().catch(console.error);
 }
-
-export { fixCoordinates };
