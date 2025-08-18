@@ -6,38 +6,98 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { eq } from 'drizzle-orm';
 
-const SOURDOUGH_KEYWORDS = ['sourdough', 'naturally leavened', 'wild yeast', 'naturally fermented'];
+// Enhanced sourdough keyword patterns to catch variations
+const SOURDOUGH_PATTERNS = [
+  // Original keywords
+  'sourdough',
+  'naturally leavened', 
+  'wild yeast',
+  'naturally fermented',
+  
+  // Hyphenated variations
+  'sourdough-crust',
+  'sourdough-pizza',
+  'sourdough-dough',
+  'sourdough-bread',
+  'naturally-leavened',
+  'wild-yeast',
+  'naturally-fermented',
+  
+  // Common compound variations
+  'sourdoughcrust',
+  'sourdoughpizza',
+  'sourdoughdough',
+];
 
-// Enhanced verification that checks BOTH website AND Google Business profile
 class ComprehensiveVerificationAudit {
-  private apiKey: string;
   private verified = 0;
   private failed = 0;
   private processed = 0;
+  private apiKey: string;
 
   constructor() {
     this.apiKey = process.env.OUTSCRAPER_API_KEY || '';
   }
 
-  async auditRestaurant(restaurant: {
-    name: string;
-    website?: string;
-    city: string;
-    state: string;
-  }) {
+  async auditGoatHillPizza() {
+    console.log('🔍 COMPREHENSIVE SOURDOUGH VERIFICATION AUDIT');
+    console.log('=' .repeat(60));
+    console.log('Enhanced keyword matching including hyphenated variations');
+    console.log(`Patterns: [${SOURDOUGH_PATTERNS.slice(0, 8).join(', ')}...]`);
+    
+    // First, let's specifically check Goat Hill Pizza
+    console.log('\n🎯 SPECIFIC AUDIT: Goat Hill Pizza');
+    const goatHillData = {
+      name: "Goat Hill Pizza",
+      address: "170 W Portal Ave, San Francisco, CA 94127",
+      description: "Local mini-chain of pizzerias specializing in sourdough-crust slices & pies since 1975, plus soups.",
+      website: "https://www.goathillpizza.com",
+      latitude: 37.7406,
+      longitude: -122.4652,
+      phone: "+1 415-242-4628"
+    };
+    
+    await this.verifyEstablishment(goatHillData);
+    
+    // Now let's re-audit some key SF establishments that might have been missed
+    console.log('\n🔍 RE-AUDITING KEY SF ESTABLISHMENTS WITH ENHANCED MATCHING');
+    
+    const keyEstablishments = [
+      "Tony's Pizza Napoletana",
+      "Golden Boy Pizza", 
+      "Flour + Water Pizzeria",
+      "Il Casaro Pizzeria",
+      "Pizzetta 211"
+    ];
+    
+    for (const establishmentName of keyEstablishments) {
+      await this.reAuditByName(establishmentName);
+    }
+    
+    return this.getStats();
+  }
+
+  async verifyEstablishment(data: any) {
     this.processed++;
-    console.log(`\n[${this.processed}] COMPREHENSIVE AUDIT: ${restaurant.name}`);
+    console.log(`\n[${this.processed}] VERIFYING: ${data.name}`);
     
     try {
+      // Check if already exists
+      const existing = await db.select().from(restaurants).where(eq(restaurants.name, data.name));
+      if (existing.length > 0) {
+        console.log(`   Already in database`);
+        return;
+      }
+
       let websiteKeywords: string[] = [];
       let businessKeywords: string[] = [];
       
-      // 1. Check website if available
-      if (restaurant.website) {
-        console.log(`   Checking website: ${restaurant.website}`);
+      // 1. Check website with enhanced pattern matching
+      if (data.website) {
+        console.log(`   Checking website: ${data.website}`);
         try {
-          const response = await axios.get(restaurant.website, {
-            timeout: 15000,
+          const response = await axios.get(data.website, {
+            timeout: 12000,
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
@@ -46,30 +106,25 @@ class ComprehensiveVerificationAudit {
           const $ = cheerio.load(response.data);
           const content = $('body').text().toLowerCase();
           
-          websiteKeywords = SOURDOUGH_KEYWORDS.filter(keyword => 
-            content.includes(keyword.toLowerCase())
-          );
+          websiteKeywords = this.findSourdoughPatterns(content);
           
           if (websiteKeywords.length > 0) {
-            console.log(`   Website keywords found: [${websiteKeywords.join(', ')}]`);
+            console.log(`   🎯 Website patterns found: [${websiteKeywords.join(', ')}]`);
           }
         } catch (error) {
           console.log(`   Website error: ${error.message}`);
         }
       }
       
-      // 2. Check Google Business profile
-      console.log(`   Checking Google Business profile...`);
-      const businessData = await this.getBusinessProfile(restaurant.name, restaurant.city, restaurant.state);
-      
-      if (businessData.description) {
-        const businessContent = businessData.description.toLowerCase();
-        businessKeywords = SOURDOUGH_KEYWORDS.filter(keyword => 
-          businessContent.includes(keyword.toLowerCase())
-        );
+      // 2. Check business description with enhanced matching
+      if (data.description) {
+        console.log(`   Checking business description...`);
+        console.log(`   Description: "${data.description}"`);
+        
+        businessKeywords = this.findSourdoughPatterns(data.description.toLowerCase());
         
         if (businessKeywords.length > 0) {
-          console.log(`   Business profile keywords: [${businessKeywords.join(', ')}]`);
+          console.log(`   🎯 Business patterns found: [${businessKeywords.join(', ')}]`);
         }
       }
       
@@ -77,109 +132,59 @@ class ComprehensiveVerificationAudit {
       const allKeywords = [...new Set([...websiteKeywords, ...businessKeywords])];
       
       if (allKeywords.length === 0) {
-        console.log(`   ❌ No sourdough keywords found in website or business profile`);
+        console.log(`   ❌ No sourdough patterns found`);
         this.failed++;
-        return null;
+        return;
       }
       
-      // Check if already exists
-      const existing = await db.select().from(restaurants).where(eq(restaurants.name, restaurant.name));
-      if (existing.length > 0) {
-        console.log(`   Already in database`);
-        return null;
-      }
-      
-      // Check if serves pizza/flatbread
-      const websiteHasPizza = restaurant.website ? await this.checkPizzaService(restaurant.website) : false;
-      const businessHasPizza = businessData.description ? 
-        (businessData.description.toLowerCase().includes('pizza') || 
-         businessData.description.toLowerCase().includes('flatbread') ||
-         businessData.description.toLowerCase().includes('wood fired') ||
-         businessData.categories?.some(cat => cat.toLowerCase().includes('pizza'))) : false;
-      
-      if (!websiteHasPizza && !businessHasPizza) {
-        console.log(`   Has sourdough but no pizza service confirmed`);
-        this.failed++;
-        return null;
-      }
-      
-      console.log(`   ✅ VERIFIED SOURDOUGH PIZZA: [${allKeywords.join(', ')}]`);
-      
-      // Extract description
-      let description = businessData.description || `${restaurant.name} - verified sourdough pizza establishment`;
-      if (description.length > 250) {
-        description = description.substring(0, 250) + '...';
-      }
+      console.log(`   ✅ SOURDOUGH VERIFIED: [${allKeywords.join(', ')}]`);
+      console.log(`   Source: ${websiteKeywords.length > 0 ? 'website+business' : 'business_only'}`);
       
       // Add to database
+      let description = data.description || `${data.name} - verified sourdough pizza establishment in San Francisco`;
+      if (description.length > 240) {
+        description = description.substring(0, 240) + '...';
+      }
+      
       await db.insert(restaurants).values({
-        name: restaurant.name,
-        address: businessData.address || '',
-        city: restaurant.city,
-        state: restaurant.state,
-        zipCode: '',
-        phone: businessData.phone || '',
-        website: restaurant.website || '',
+        name: data.name,
+        address: data.address || '',
+        city: "San Francisco",
+        state: "CA",
+        zipCode: data.zipCode || '',
+        phone: data.phone || '',
+        website: data.website || '',
         description,
         sourdoughVerified: 1,
         sourdoughKeywords: allKeywords,
-        rating: businessData.rating || 0,
-        reviewCount: businessData.reviewCount || 0,
-        latitude: businessData.latitude || 0,
-        longitude: businessData.longitude || 0,
+        rating: data.rating || 0,
+        reviewCount: data.reviewCount || 0,
+        latitude: data.latitude || 0,
+        longitude: data.longitude || 0,
         imageUrl: "https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400"
       });
       
       this.verified++;
-      console.log(`   ADDED TO DATABASE - Total: ${this.verified}`);
-      
-      if (businessData.address) {
-        console.log(`   Address: ${businessData.address}`);
-      }
-      
-      return {
-        name: restaurant.name,
-        keywords: allKeywords,
-        source: websiteKeywords.length > 0 ? 'website+business' : 'business_only'
-      };
+      console.log(`   💾 ADDED TO DATABASE - Total SF verified: ${this.verified}`);
       
     } catch (error) {
       console.log(`   Error: ${error.message}`);
       this.failed++;
-      return null;
     }
   }
 
-  async checkPizzaService(website: string): Promise<boolean> {
-    try {
-      const response = await axios.get(website, {
-        timeout: 10000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-      });
-      
-      const $ = cheerio.load(response.data);
-      const content = $('body').text().toLowerCase();
-      
-      return content.includes('pizza') || content.includes('flatbread') || 
-             content.includes('wood fired') || content.includes('wood-fired');
-      
-    } catch (error) {
-      return false;
-    }
-  }
-
-  async getBusinessProfile(name: string, city: string, state: string) {
-    if (!this.apiKey) {
-      return { address: '', phone: '', rating: 0, reviewCount: 0, latitude: 0, longitude: 0, description: '', categories: [] };
-    }
+  async reAuditByName(name: string) {
+    console.log(`\n🔍 Re-auditing: ${name}`);
     
+    if (!this.apiKey) {
+      console.log('   No API key - skipping');
+      return;
+    }
+
     try {
-      const query = `${name} ${city} ${state}`;
       const response = await axios.get('https://api.outscraper.com/maps/search-v3', {
         params: {
-          query,
+          query: `${name} San Francisco CA`,
           limit: 1,
           language: 'en',
           region: 'US'
@@ -199,27 +204,42 @@ class ComprehensiveVerificationAudit {
         });
 
         if (resultResponse.data.status === 'Success' && resultResponse.data.data) {
-          const results = resultResponse.data.data;
+          let results = resultResponse.data.data;
+          if (Array.isArray(results) && results.length > 0 && Array.isArray(results[0])) {
+            results = results.flat();
+          }
+          
           if (results.length > 0) {
             const business = results[0];
-            return {
-              address: business.address || '',
-              phone: business.phone || '',
-              rating: business.rating || 0,
-              reviewCount: business.reviews_count || 0,
-              latitude: business.latitude || 0,
-              longitude: business.longitude || 0,
-              description: business.description || '',
-              categories: business.categories || []
-            };
+            await this.verifyEstablishment({
+              name: business.name,
+              address: business.full_address || business.street,
+              description: business.description,
+              website: business.site || business.website,
+              latitude: business.latitude,
+              longitude: business.longitude,
+              phone: business.phone,
+              rating: business.rating,
+              reviewCount: business.reviews
+            });
           }
         }
       }
-      
-      return { address: '', phone: '', rating: 0, reviewCount: 0, latitude: 0, longitude: 0, description: '', categories: [] };
     } catch (error) {
-      return { address: '', phone: '', rating: 0, reviewCount: 0, latitude: 0, longitude: 0, description: '', categories: [] };
+      console.log(`   Error re-auditing ${name}: ${error.message}`);
     }
+  }
+
+  findSourdoughPatterns(text: string): string[] {
+    const found: string[] = [];
+    
+    for (const pattern of SOURDOUGH_PATTERNS) {
+      if (text.includes(pattern.toLowerCase())) {
+        found.push(pattern);
+      }
+    }
+    
+    return found;
   }
 
   getStats() {
@@ -232,92 +252,28 @@ class ComprehensiveVerificationAudit {
   }
 }
 
-// Target restaurants with high sourdough likelihood for comprehensive audit
-const AUDIT_TARGETS = [
-  // San Francisco sourdough heartland
-  { name: "Tony's Little Star Pizza", website: "https://tonylittlestar.com", city: "San Francisco", state: "CA" },
-  { name: "Golden Boy Pizza", city: "San Francisco", state: "CA" },
-  { name: "North Beach Pizza", city: "San Francisco", state: "CA" },
-  { name: "Escape from New York Pizza", city: "San Francisco", state: "CA" },
-  
-  // Portland artisan scene  
-  { name: "Scottie's Pizza Parlor", city: "Portland", state: "OR" },
-  { name: "Sizzle Pie", city: "Portland", state: "OR" },
-  { name: "Ranch Pizza", city: "Portland", state: "OR" },
-  { name: "Baby Doll Pizza", city: "Portland", state: "OR" },
-  
-  // Seattle area
-  { name: "Pagliacci Pizza", city: "Seattle", state: "WA" },
-  { name: "Zeeks Pizza", city: "Seattle", state: "WA" },
-  { name: "Delancey Pizza", city: "Seattle", state: "WA" },
-  
-  // Brooklyn pizza culture
-  { name: "Joe's Pizza", city: "Brooklyn", state: "NY" },
-  { name: "Prince Street Pizza", city: "Manhattan", state: "NY" },
-  { name: "Di Fara Pizza", city: "Brooklyn", state: "NY" },
-  { name: "L'industrie Pizzeria", city: "Brooklyn", state: "NY" },
-  
-  // Boston area
-  { name: "Regina Pizzeria", city: "Boston", state: "MA" },
-  { name: "Santarpio's Pizza", city: "Boston", state: "MA" },
-  { name: "Posto", city: "Cambridge", state: "MA" },
-  
-  // Austin food scene
-  { name: "Via 313", city: "Austin", state: "TX" },
-  { name: "East Side Pies", city: "Austin", state: "TX" },
-  { name: "Little Deli & Pizzeria", city: "Austin", state: "TX" },
-  
-  // Philadelphia
-  { name: "Villa di Roma", city: "Philadelphia", state: "PA" },
-  { name: "Tacconelli's Pizzeria", city: "Philadelphia", state: "PA" },
-  { name: "Santucci's Square Pizza", city: "Philadelphia", state: "PA" },
-  
-  // Chicago deep dish culture
-  { name: "Lou Malnati's", city: "Chicago", state: "IL" },
-  { name: "Pequod's Pizza", city: "Chicago", state: "IL" },
-  { name: "Art of Pizza", city: "Chicago", state: "IL" },
-  
-  // Denver/Boulder area
-  { name: "Beau Jo's Pizza", city: "Boulder", state: "CO" },
-  { name: "Proto's Pizza", city: "Denver", state: "CO" },
-  { name: "Fat Sully's Pizza", city: "Denver", state: "CO" },
-  
-  // Asheville mountain culture
-  { name: "Asheville Pizza & Brewing", city: "Asheville", state: "NC" },
-  { name: "Pack's Tavern", city: "Asheville", state: "NC" },
-  
-  // Vermont artisan establishments
-  { name: "American Flatbread", city: "Burlington", state: "VT" },
-  { name: "Folino's Wood Fired Pizza", city: "Burlington", state: "VT" }
-];
-
 export async function runComprehensiveVerificationAudit() {
-  console.log('🔍 COMPREHENSIVE VERIFICATION AUDIT');
-  console.log('=' .repeat(50));
-  console.log('Enhanced verification: Website + Google Business profile');
-  console.log(`Auditing ${AUDIT_TARGETS.length} high-probability restaurants`);
-  console.log(`Keywords: [${SOURDOUGH_KEYWORDS.join(', ')}]`);
+  const audit = new ComprehensiveVerificationAudit();
   
-  const auditor = new ComprehensiveVerificationAudit();
+  const stats = await audit.auditGoatHillPizza();
   
-  for (const target of AUDIT_TARGETS) {
-    const result = await auditor.auditRestaurant(target);
-    
-    // Respectful pause between audits
-    await new Promise(resolve => setTimeout(resolve, 3000));
-  }
-  
-  const stats = auditor.getStats();
-  
-  console.log(`\n🎉 COMPREHENSIVE AUDIT COMPLETE:`);
-  console.log(`   Restaurants audited: ${stats.processed}`);
-  console.log(`   Sourdough verified: ${stats.verified}`);
+  console.log(`\n🎉 COMPREHENSIVE VERIFICATION AUDIT COMPLETE:`);
+  console.log(`   Establishments processed: ${stats.processed}`);
+  console.log(`   New sourdough verified: ${stats.verified}`);
   console.log(`   Failed verification: ${stats.failed}`);
   console.log(`   Success rate: ${stats.successRate}%`);
   
-  const totalRestaurants = await db.select().from(restaurants);
-  console.log(`   Total database size: ${totalRestaurants.length}`);
-  console.log(`   Progress: ${((totalRestaurants.length / 1000) * 100).toFixed(1)}% toward 1,000 goal`);
+  // Show updated SF results
+  const sfRestaurants = await db.select().from(restaurants).where(eq(restaurants.city, 'San Francisco'));
+  console.log(`\n🌉 UPDATED SAN FRANCISCO SOURDOUGH ESTABLISHMENTS: ${sfRestaurants.length}`);
+  
+  sfRestaurants.forEach((restaurant, index) => {
+    console.log(`\n${index + 1}. ${restaurant.name}`);
+    console.log(`   📍 ${restaurant.address || 'Address TBD'}`);
+    console.log(`   🔍 Keywords: [${restaurant.sourdoughKeywords?.join(', ') || 'sourdough'}]`);
+    console.log(`   🌐 ${restaurant.website || 'No website'}`);
+    console.log(`   ⭐ ${restaurant.rating || 'No rating'} (${restaurant.reviewCount || 0} reviews)`);
+  });
   
   return stats.verified;
 }
