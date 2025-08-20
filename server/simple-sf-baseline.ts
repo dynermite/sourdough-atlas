@@ -21,11 +21,11 @@ class SimpleSFBaseline {
 
     // Just use the most effective searches we identified
     const searches = [
-      'Pizza restaurant San Francisco CA',    // 50 results
-      'wood fired pizza San Francisco CA',    // 11 new 
-      'italian restaurant San Francisco CA',  // 9 new
-      'deep dish pizza San Francisco CA',     // 8 new
-      'new york style pizza San Francisco CA' // 8 new
+      'Pizza restaurant San Francisco CA',      // 50 results
+      'wood fired pizza San Francisco CA',      // 11 new 
+      'italian restaurant San Francisco CA',    // 9 new
+      'sourdough pizza restaurants San Francisco', // Direct sourdough search
+      'pizzeria in San Francisco'               // Alternative pizzeria search
     ];
 
     for (const query of searches) {
