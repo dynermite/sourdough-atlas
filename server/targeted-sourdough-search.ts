@@ -8,15 +8,15 @@ import type { InsertRestaurant } from '@shared/schema';
 
 interface OutscraperResult {
   name: string;
-  address: string;
+  full_address: string;
   phone?: string;
-  website?: string;
+  site?: string;
   latitude?: number;
   longitude?: number;
   google_id?: string;
   description?: string;
   category?: string;
-  reviews_count?: number;
+  reviews?: number;
   rating?: number;
 }
 
@@ -138,9 +138,9 @@ class TargetedSourdoughSearch {
 
       // Deduplicate by name and address
       const uniqueResults = allResults.filter((restaurant, index, self) => {
-        const key = `${restaurant.name}-${restaurant.address}`.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const key = `${restaurant.name}-${restaurant.full_address}`.toLowerCase().replace(/[^a-z0-9]/g, '');
         return index === self.findIndex(r => 
-          `${r.name}-${r.address}`.toLowerCase().replace(/[^a-z0-9]/g, '') === key
+          `${r.name}-${r.full_address}`.toLowerCase().replace(/[^a-z0-9]/g, '') === key
         );
       });
 
@@ -161,7 +161,7 @@ class TargetedSourdoughSearch {
     for (let i = 0; i < results.length; i++) {
       const restaurant = results[i];
       console.log(`\n[${i + 1}/${results.length}] 🍕 ${restaurant.name}`);
-      console.log(`   📍 ${restaurant.address || 'Address not provided'}`);
+      console.log(`   📍 ${restaurant.full_address || 'Address not provided'}`);
       
       let isVerified = false;
       let verificationSource = '';
@@ -176,8 +176,8 @@ class TargetedSourdoughSearch {
       }
       
       // Also check website for additional verification
-      if (restaurant.website) {
-        const websiteResult = await this.scrapeWebsiteForSourdough(restaurant.website);
+      if (restaurant.site) {
+        const websiteResult = await this.scrapeWebsiteForSourdough(restaurant.site);
         if (websiteResult.hasSourdough) {
           isVerified = true;
           if (!verificationSource) {
@@ -190,7 +190,7 @@ class TargetedSourdoughSearch {
       
       if (isVerified) {
         // Skip if no address (required field)
-        if (!restaurant.address) {
+        if (!restaurant.full_address) {
           console.log(`   ⚠️  Skipping - no address provided`);
           continue;
         }
@@ -198,9 +198,9 @@ class TargetedSourdoughSearch {
         try {
           const insertData: InsertRestaurant = {
             name: restaurant.name,
-            address: restaurant.address,
+            address: restaurant.full_address,
             phone: restaurant.phone || null,
-            website: restaurant.website || null,
+            website: restaurant.site || null,
             latitude: restaurant.latitude || null,
             longitude: restaurant.longitude || null,
             description: `${restaurant.description || ''}\n\nSourdough verified from ${verificationSource}: ${verificationContent?.substring(0, 200)}...`.trim(),
