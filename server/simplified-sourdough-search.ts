@@ -276,7 +276,7 @@ class SimplifiedSourdoughSearch {
 
 // Execute directly
 const searcher = new SimplifiedSourdoughSearch();
-searcher.executeSimplifiedSearch('San Francisco', 'CA')
+searcher.executeSimplifiedSearch('Los Angeles', 'CA')
   .then((count) => {
     console.log(`\n✅ Simplified search completed successfully!`);
     console.log(`🥖 Found and verified ${count} sourdough pizza restaurants`);
