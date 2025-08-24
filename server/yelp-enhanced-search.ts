@@ -107,6 +107,103 @@ class YelpEnhancedSearch {
     }
   }
 
+  private async checkAlternativeSourcesForSourdough(businessName: string, address: string): Promise<{
+    hasSourdough: boolean;
+    source?: string;
+    content?: string;
+  }> {
+    try {
+      // Strategy 1: Search for restaurant + sourdough mentions online
+      const sourdoughSearchQuery = `"${businessName}" sourdough pizza ${address.split(',')[0]}`;
+      
+      console.log(`     🔍 Searching: "${sourdoughSearchQuery}"`);
+      
+      const response = await axios.get('https://api.outscraper.com/maps/search-v3', {
+        params: {
+          query: sourdoughSearchQuery,
+          language: 'en',
+          region: 'US',
+          limit: 10,
+          async: false
+        },
+        headers: {
+          'X-API-KEY': this.outscraper_api_key
+        },
+        timeout: 30000
+      });
+
+      if (response.data?.data?.[0]) {
+        const results = response.data.data[0];
+        
+        for (const result of results) {
+          // Check if this result mentions both the restaurant and sourdough
+          const title = result.title || '';
+          const snippet = result.snippet || '';
+          const description = result.description || '';
+          
+          const allText = `${title} ${snippet} ${description}`.toLowerCase();
+          
+          // Verify this is about our restaurant
+          const restaurantNameWords = businessName.toLowerCase().split(' ');
+          const hasRestaurantName = restaurantNameWords.some(word => 
+            word.length > 3 && allText.includes(word)
+          );
+          
+          if (hasRestaurantName && this.containsSourdoughKeywords(allText)) {
+            return {
+              hasSourdough: true,
+              source: 'Web Search Results',
+              content: `${title}: ${snippet}`.substring(0, 200)
+            };
+          }
+        }
+      }
+      
+      return { hasSourdough: false };
+      
+    } catch (error: any) {
+      console.log(`     ⚠️  Alternative search failed: ${error.message}`);
+      return { hasSourdough: false };
+    }
+  }
+
+  private async scrapeSocialMediaForSourdough(url: string, platform: string): Promise<{
+    hasSourdough: boolean;
+    content?: string;
+  }> {
+    try {
+      console.log(`     📱 Checking ${platform}: ${url}`);
+      
+      const response = await axios.get(url, {
+        timeout: 8000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+
+      const $ = cheerio.load(response.data);
+      $('script, style, noscript').remove();
+      
+      // Extract text content from the page
+      const bodyText = $('body').text();
+      const metaDescription = $('meta[name="description"]').attr('content') || '';
+      const metaProperty = $('meta[property="og:description"]').attr('content') || '';
+      const title = $('title').text() || '';
+      
+      const allContent = `${title} ${metaDescription} ${metaProperty} ${bodyText}`.toLowerCase();
+      const hasSourdough = this.containsSourdoughKeywords(allContent);
+      
+      return {
+        hasSourdough,
+        content: hasSourdough ? allContent.substring(0, 300) : undefined
+      };
+
+    } catch (error: any) {
+      console.log(`     ⚠️  ${platform} check failed: ${error.message}`);
+      return { hasSourdough: false };
+    }
+  }
+
   private async searchGoogleForArtisanPizza(city: string, state: string): Promise<BusinessResult[]> {
     try {
       console.log(`🔍 Google: Searching "artisan pizza ${city} ${state}"...`);
@@ -234,7 +331,12 @@ class YelpEnhancedSearch {
 
   private async verifyAndSaveResults(results: BusinessResult[], city: string, state: string): Promise<number> {
     console.log(`\n🔍 Verifying ${results.length} pizza restaurants...`);
-    console.log(`⏱️  Estimated time: ${Math.ceil(results.length * 1.5 / 60)} minutes\n`);
+    console.log(`📋 Enhanced multi-source verification:`);
+    console.log(`   1️⃣ Google Business profiles for sourdough keywords`);
+    console.log(`   2️⃣ Restaurant websites for sourdough content`);
+    console.log(`   3️⃣ Web search for restaurant + sourdough mentions`);
+    console.log(`   4️⃣ Alternative online sources verification`);
+    console.log(`⏱️  Estimated time: ${Math.ceil(results.length * 2.5 / 60)} minutes\n`);
     
     let verifiedCount = 0;
     
@@ -264,7 +366,7 @@ class YelpEnhancedSearch {
         console.log(`   ✅ SOURDOUGH FOUND in Yelp business name!`);
       }
       
-      // Step 3: Only check website if NOT found in business description/name
+      // Step 3: Check website if NOT found in business description/name
       else if (business.website && !business.website.includes('yelp.com')) {
         const websiteResult = await this.scrapeWebsiteForSourdough(business.website);
         if (websiteResult.hasSourdough) {
@@ -272,11 +374,22 @@ class YelpEnhancedSearch {
           verificationSource = 'Restaurant Website';
           verificationContent = websiteResult.content || '';
           console.log(`   ✅ SOURDOUGH FOUND on website!`);
-        } else {
-          console.log(`   ❌ No sourdough keywords found`);
         }
-      } else {
-        console.log(`   ❌ No business description or website to check`);
+      }
+      
+      // Step 4: Check alternative web sources if still not found
+      if (!isVerified) {
+        console.log(`   🔍 Checking alternative sources for sourdough mentions...`);
+        const alternativeResult = await this.checkAlternativeSourcesForSourdough(business.name, business.address);
+        
+        if (alternativeResult.hasSourdough) {
+          isVerified = true;
+          verificationSource = alternativeResult.source || 'Alternative Web Sources';
+          verificationContent = alternativeResult.content || '';
+          console.log(`   ✅ SOURDOUGH FOUND in web search results!`);
+        } else {
+          console.log(`   ❌ No sourdough keywords found in any sources`);
+        }
       }
       
       if (isVerified && business.address) {
