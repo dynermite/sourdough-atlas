@@ -214,7 +214,7 @@ class YelpEnhancedSearch {
           name: business.name,
           address: business.location?.display_address?.join(', ') || '',
           phone: business.phone,
-          website: business.url, // Yelp URL, we'd need to get actual website separately
+          website: business.attributes?.menu_url || business.url, // Extract actual website from menu_url or fallback to Yelp URL
           description: '', // Yelp doesn't provide description in search
           rating: business.rating,
           source: 'Yelp' as const,
