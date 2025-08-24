@@ -185,7 +185,7 @@ class YelpEnhancedSearch {
               limit: 50,
               sort_by: 'rating'
             },
-            timeout: 10000
+            timeout: 8000
           });
 
           if (response.data && response.data.businesses) {
@@ -234,6 +234,7 @@ class YelpEnhancedSearch {
 
   private async verifyAndSaveResults(results: BusinessResult[], city: string, state: string): Promise<number> {
     console.log(`\n🔍 Verifying ${results.length} pizza restaurants...`);
+    console.log(`⏱️  Estimated time: ${Math.ceil(results.length * 1.5 / 60)} minutes\n`);
     
     let verifiedCount = 0;
     
@@ -308,8 +309,15 @@ class YelpEnhancedSearch {
         }
       }
       
-      // Rate limiting
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Reduced rate limiting for faster processing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Progress checkpoint every 25 restaurants
+      if ((i + 1) % 25 === 0) {
+        console.log(`\n📊 CHECKPOINT: Processed ${i + 1}/${results.length} restaurants`);
+        console.log(`✅ Found ${verifiedCount} sourdough establishments so far`);
+        console.log(`📈 Current success rate: ${((verifiedCount / (i + 1)) * 100).toFixed(1)}%`);
+      }
     }
     
     return verifiedCount;
