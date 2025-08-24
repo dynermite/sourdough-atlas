@@ -107,13 +107,13 @@ class YelpEnhancedSearch {
     }
   }
 
-  private async searchGoogleForSourdoughPizza(city: string, state: string): Promise<BusinessResult[]> {
+  private async searchGoogleForArtisanPizza(city: string, state: string): Promise<BusinessResult[]> {
     try {
-      console.log(`🔍 Google: Searching "sourdough pizza ${city} ${state}"...`);
+      console.log(`🔍 Google: Searching "artisan pizza ${city} ${state}"...`);
       
       const response = await axios.get('https://api.outscraper.com/maps/search-v3', {
         params: {
-          query: `sourdough pizza ${city} ${state}`,
+          query: `artisan pizza ${city} ${state}`,
           language: 'en',
           region: 'US',
           limit: 100,
@@ -158,17 +158,17 @@ class YelpEnhancedSearch {
     }
   }
 
-  private async searchYelpForSourdoughPizza(city: string, state: string): Promise<BusinessResult[]> {
+  private async searchYelpForArtisanPizza(city: string, state: string): Promise<BusinessResult[]> {
     if (!this.yelp_api_key) {
       console.log('🔍 Yelp: Skipping (no API key provided)');
       return [];
     }
 
     try {
-      console.log(`🔍 Yelp: Searching "sourdough pizza" in ${city}, ${state}...`);
+      console.log(`🔍 Yelp: Searching "artisan pizza" in ${city}, ${state}...`);
       
-      // Search for sourdough pizza
-      const searchTerms = ['sourdough pizza', 'naturally leavened pizza'];
+      // Search for artisan pizza
+      const searchTerms = ['artisan pizza', 'gourmet pizza', 'wood fired pizza', 'neapolitan pizza'];
       let allYelpResults: any[] = [];
 
       for (const term of searchTerms) {
@@ -315,16 +315,16 @@ class YelpEnhancedSearch {
     return verifiedCount;
   }
 
-  async executeYelpEnhancedSearch(city: string = 'Los Angeles', state: string = 'CA'): Promise<number> {
-    console.log(`\n🚀 YELP-ENHANCED SOURDOUGH PIZZA SEARCH for ${city}, ${state}`);
-    console.log('📋 Strategy: Google Maps + Yelp API → verify pizza restaurants only');
+  async executeArtisanSearch(city: string = 'San Francisco', state: string = 'CA'): Promise<number> {
+    console.log(`\n🚀 ARTISAN PIZZA SEARCH for ${city}, ${state}`);
+    console.log('📋 Strategy: Search "artisan pizza" → verify for sourdough keywords');
     
     try {
-      // Step 1: Search Google for "sourdough pizza [city] [state]"
-      const googleResults = await this.searchGoogleForSourdoughPizza(city, state);
+      // Step 1: Search Google for "artisan pizza [city] [state]"
+      const googleResults = await this.searchGoogleForArtisanPizza(city, state);
       
-      // Step 2: Search Yelp for sourdough pizza
-      const yelpResults = await this.searchYelpForSourdoughPizza(city, state);
+      // Step 2: Search Yelp for artisan pizza
+      const yelpResults = await this.searchYelpForArtisanPizza(city, state);
       
       // Step 3: Combine and deduplicate results
       const allResults = [...googleResults, ...yelpResults];
@@ -350,15 +350,15 @@ class YelpEnhancedSearch {
       const verifiedCount = await this.verifyAndSaveResults(uniqueResults, city, state);
 
       // Step 5: Final summary
-      console.log(`\n📊 YELP-ENHANCED SEARCH COMPLETE`);
-      console.log(`🔍 Google + Yelp restaurants found: ${uniqueResults.length}`);
+      console.log(`\n📊 ARTISAN SEARCH COMPLETE`);
+      console.log(`🔍 Artisan pizza restaurants found: ${uniqueResults.length}`);
       console.log(`✅ Verified sourdough restaurants: ${verifiedCount}`);
       console.log(`📈 Success rate: ${((verifiedCount / uniqueResults.length) * 100).toFixed(1)}%`);
 
       return verifiedCount;
 
     } catch (error: any) {
-      console.error('❌ Yelp-enhanced search failed:', error.message);
+      console.error('❌ Artisan search failed:', error.message);
       throw error;
     }
   }
@@ -366,7 +366,7 @@ class YelpEnhancedSearch {
 
 // Execute directly
 const searcher = new YelpEnhancedSearch();
-searcher.executeYelpEnhancedSearch('Portland', 'OR')
+searcher.executeArtisanSearch('San Francisco', 'CA')
   .then((count) => {
     console.log(`\n✅ Yelp-enhanced search completed successfully!`);
     console.log(`🥖 Found and verified ${count} sourdough pizza restaurants`);
