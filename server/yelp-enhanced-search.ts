@@ -374,7 +374,7 @@ class YelpEnhancedSearch {
 
 // Execute directly
 const searcher = new YelpEnhancedSearch();
-searcher.executeArtisanSearch('San Francisco', 'CA')
+searcher.executeArtisanSearch('Los Angeles', 'CA')
   .then((count) => {
     console.log(`\n✅ Yelp-enhanced search completed successfully!`);
     console.log(`🥖 Found and verified ${count} sourdough pizza restaurants`);
