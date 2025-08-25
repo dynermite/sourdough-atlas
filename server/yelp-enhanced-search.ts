@@ -204,68 +204,88 @@ class YelpEnhancedSearch {
     }
   }
 
-  private async searchGoogleForArtisanPizza(city: string, state: string): Promise<BusinessResult[]> {
-    try {
-      console.log(`🔍 Google: Searching "artisan pizza ${city} ${state}"...`);
-      
-      const response = await axios.get('https://api.outscraper.com/maps/search-v3', {
-        params: {
-          query: `artisan pizza ${city} ${state}`,
-          language: 'en',
-          region: 'US',
-          limit: 100,
-          async: false
-        },
-        headers: {
-          'X-API-KEY': this.outscraper_api_key
-        },
-        timeout: 60000
-      });
+  private async searchGoogleForPizza(city: string, state: string): Promise<BusinessResult[]> {
+    const searchTerms = [
+      `artisan pizza ${city} ${state}`,
+      `sourdough pizza ${city} ${state}`
+    ];
+    
+    const allResults: BusinessResult[] = [];
+    
+    for (const searchTerm of searchTerms) {
+      try {
+        console.log(`🔍 Google: Searching "${searchTerm}"...`);
+        
+        const response = await axios.get('https://api.outscraper.com/maps/search-v3', {
+          params: {
+            query: searchTerm,
+            language: 'en',
+            region: 'US',
+            limit: 100,
+            async: false
+          },
+          headers: {
+            'X-API-KEY': this.outscraper_api_key
+          },
+          timeout: 60000
+        });
 
-      if (!response.data || !response.data.data || !Array.isArray(response.data.data)) {
-        console.log('   No Google results found');
-        return [];
-      }
+        if (!response.data || !response.data.data || !Array.isArray(response.data.data)) {
+          console.log(`   No Google results found for "${searchTerm}"`);
+          continue;
+        }
 
-      const results = response.data.data.flat();
-      console.log(`   📍 Found ${results.length} Google results`);
-
-      // Filter to pizza restaurants only
-      const pizzaResults: BusinessResult[] = results
-        .filter(r => this.isPizzaRestaurant(r.name, r.type))
-        .map(r => ({
-          name: r.name,
-          address: r.full_address,
-          phone: r.phone,
-          website: r.site,
-          description: r.description,
-          rating: r.rating,
+        const results = response.data.data[0] || [];
+        const pizzaResults = results.filter((business: any) => {
+          return this.isPizzaRestaurant(business.name, business.type);
+        }).map((business: any) => ({
+          name: business.name,
+          address: business.full_address || business.address || '',
+          phone: business.phone || '',
+          website: business.website || business.site || '',
+          description: business.description || '',
+          rating: business.rating || 0,
           source: 'Google' as const,
-          businessType: r.type,
-          latitude: r.latitude,
-          longitude: r.longitude
+          businessType: business.type || '',
+          latitude: business.latitude,
+          longitude: business.longitude
         }));
 
-      console.log(`   🍕 Filtered to ${pizzaResults.length} pizza restaurants`);
-      return pizzaResults;
+        allResults.push(...pizzaResults);
+        console.log(`   📍 Found ${results.length} results for "${searchTerm}"`);
+        console.log(`   🍕 Filtered to ${pizzaResults.length} pizza restaurants`);
+        
+        // Rate limiting between searches
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-    } catch (error: any) {
-      console.error('   ❌ Google search failed:', error.message);
-      return [];
+      } catch (error: any) {
+        console.error(`   ❌ Google search failed for "${searchTerm}": ${error.message}`);
+      }
     }
+
+    // Remove duplicates based on name and address
+    const uniqueResults = allResults.filter((restaurant, index, self) => 
+      index === self.findIndex(r => 
+        r.name === restaurant.name && r.address === restaurant.address
+      )
+    );
+
+    console.log(`   📊 Total Google results: ${allResults.length}`);
+    console.log(`   🍕 Unique pizza restaurants: ${uniqueResults.length}`);
+    return uniqueResults;
   }
 
-  private async searchYelpForArtisanPizza(city: string, state: string): Promise<BusinessResult[]> {
+  private async searchYelpForPizza(city: string, state: string): Promise<BusinessResult[]> {
     if (!this.yelp_api_key) {
       console.log('🔍 Yelp: Skipping (no API key provided)');
       return [];
     }
 
     try {
-      console.log(`🔍 Yelp: Searching "artisan pizza" in ${city}, ${state}...`);
+      console.log(`🔍 Yelp: Searching artisan and sourdough pizza in ${city}, ${state}...`);
       
-      // Search for artisan pizza
-      const searchTerms = ['artisan pizza', 'gourmet pizza', 'wood fired pizza', 'neapolitan pizza'];
+      // Search for both artisan and sourdough pizza
+      const searchTerms = ['artisan pizza', 'gourmet pizza', 'wood fired pizza', 'neapolitan pizza', 'sourdough pizza'];
       let allYelpResults: any[] = [];
 
       for (const term of searchTerms) {
@@ -437,15 +457,15 @@ class YelpEnhancedSearch {
   }
 
   async executeArtisanSearch(city: string = 'San Francisco', state: string = 'CA'): Promise<number> {
-    console.log(`\n🚀 ARTISAN PIZZA SEARCH for ${city}, ${state}`);
-    console.log('📋 Strategy: Search "artisan pizza" → verify for sourdough keywords');
+    console.log(`\n🚀 ENHANCED PIZZA SEARCH for ${city}, ${state}`);
+    console.log('📋 Strategy: Search "artisan pizza" + "sourdough pizza" → verify for sourdough keywords');
     
     try {
-      // Step 1: Search Google for "artisan pizza [city] [state]"
-      const googleResults = await this.searchGoogleForArtisanPizza(city, state);
+      // Step 1: Search Google for artisan and sourdough pizza
+      const googleResults = await this.searchGoogleForPizza(city, state);
       
-      // Step 2: Search Yelp for artisan pizza
-      const yelpResults = await this.searchYelpForArtisanPizza(city, state);
+      // Step 2: Search Yelp for artisan and sourdough pizza
+      const yelpResults = await this.searchYelpForPizza(city, state);
       
       // Step 3: Combine and deduplicate results
       const allResults = [...googleResults, ...yelpResults];
