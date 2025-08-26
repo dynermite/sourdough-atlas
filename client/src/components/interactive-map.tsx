@@ -270,7 +270,7 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
           ` : ''}
           <div style="margin-top: 12px; display: flex; gap: 8px;">
             <button 
-              onclick="window.open('https://maps.google.com/?q=${encodeURIComponent(`${restaurant.address || restaurant.name}, ${restaurant.city}, ${restaurant.state}`)}, '_blank')"
+              onclick="window.open('https://maps.google.com/?q=${encodeURIComponent(`${restaurant.address || restaurant.name}, ${restaurant.city}, ${restaurant.state}`)}', '_blank')"
               style="
                 background-color: #ea580c;
                 color: white;
