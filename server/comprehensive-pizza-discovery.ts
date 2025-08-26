@@ -5,6 +5,7 @@ import { restaurants } from '../shared/schema';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { eq } from 'drizzle-orm';
+import { SocialMediaIntegration } from './social-media-integration';
 
 const SOURDOUGH_PATTERNS = [
   'sourdough', 'naturally leavened', 'wild yeast', 'naturally fermented',
@@ -18,9 +19,11 @@ class ComprehensivePizzaDiscovery {
   private totalProcessed = 0;
   private apiKey: string;
   private allPizzaEstablishments: any[] = [];
+  private socialMediaIntegration: SocialMediaIntegration;
 
   constructor() {
     this.apiKey = process.env.OUTSCRAPER_API_KEY || '';
+    this.socialMediaIntegration = new SocialMediaIntegration();
   }
 
   async discoverAllPizzaInCity(city: string, state: string) {
@@ -75,6 +78,7 @@ class ComprehensivePizzaDiscovery {
       `wood fired pizza ${city} ${state}`,
       `thin crust pizza ${city} ${state}`,
       `artisan pizza ${city} ${state}`,
+      `sourdough pizza ${city} ${state}`,  // BREAKTHROUGH: Direct sourdough search
       `neapolitan pizza ${city} ${state}`,
       
       // Size-based searches
@@ -288,8 +292,9 @@ class ComprehensivePizzaDiscovery {
 
     let websiteKeywords: string[] = [];
     let businessKeywords: string[] = [];
+    let socialMediaKeywords: string[] = [];
     
-    // Check business description first
+    // STEP 1: Check business description (Google Business Profile)
     if (establishment.description) {
       businessKeywords = this.findSourdoughPatterns(establishment.description.toLowerCase());
       if (businessKeywords.length > 0) {
@@ -297,7 +302,7 @@ class ComprehensivePizzaDiscovery {
       }
     }
     
-    // Check website if available
+    // STEP 2: Check website if available
     const website = establishment.site || establishment.website;
     if (website) {
       try {
@@ -321,18 +326,45 @@ class ComprehensivePizzaDiscovery {
       }
     }
     
-    // Combine results
-    const allKeywords = [...new Set([...websiteKeywords, ...businessKeywords])];
+    // STEP 3: Check social media profiles (Instagram & Facebook)
+    console.log(`   📱 Checking social media...`);
+    try {
+      const socialResult = await this.socialMediaIntegration.enhanceRestaurantWithSocialMedia(
+        establishment.name,
+        establishment.full_address || establishment.address || '',
+        establishment.phone,
+        website,
+        establishment.rating
+      );
+      
+      if (socialResult.sourdoughViaSocial) {
+        socialMediaKeywords = socialResult.evidence.flatMap(e => 
+          e.split(': ')[1]?.split(', ') || []
+        );
+        console.log(`   📱 Social media keywords: [${socialMediaKeywords.join(', ')}]`);
+      }
+    } catch (error) {
+      console.log(`   📱 Social media check failed: ${error.message}`);
+    }
+    
+    // Combine ALL verification sources
+    const allKeywords = [...new Set([...websiteKeywords, ...businessKeywords, ...socialMediaKeywords])];
     
     if (allKeywords.length === 0) {
-      console.log(`   ❌ No sourdough verification`);
+      console.log(`   ❌ No sourdough verification from any source`);
       return false;
     }
     
     console.log(`   ✅ SOURDOUGH VERIFIED: [${allKeywords.join(', ')}]`);
     
-    // Add to database
+    // Add to database with comprehensive verification tracking
     const description = establishment.description || `${establishment.name} - verified sourdough pizza establishment`;
+    
+    // Build verification source summary
+    const verificationSources = [];
+    if (businessKeywords.length > 0) verificationSources.push('Google Business');
+    if (websiteKeywords.length > 0) verificationSources.push('Website');  
+    if (socialMediaKeywords.length > 0) verificationSources.push('Social Media');
     
     await db.insert(restaurants).values({
       name: establishment.name,
@@ -342,7 +374,9 @@ class ComprehensivePizzaDiscovery {
       zipCode: establishment.postal_code || '',
       phone: establishment.phone || '',
       website: website || '',
-      description: description.length > 240 ? description.substring(0, 240) + '...' : description,
+      description: `${description} | Verified via: ${verificationSources.join(', ')}`.length > 240 
+        ? description.substring(0, 200) + `... | Sources: ${verificationSources.join(', ')}`
+        : `${description} | Verified via: ${verificationSources.join(', ')}`,
       sourdoughVerified: 1,
       sourdoughKeywords: allKeywords,
       rating: establishment.rating || 0,
@@ -368,6 +402,8 @@ class ComprehensivePizzaDiscovery {
     return found;
   }
 }
+
+export { ComprehensivePizzaDiscovery };
 
 export async function runComprehensivePizzaDiscovery(city: string = 'San Francisco', state: string = 'CA') {
   const discovery = new ComprehensivePizzaDiscovery();
