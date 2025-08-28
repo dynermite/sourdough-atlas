@@ -214,7 +214,9 @@ class ComprehensivePizzaDiscovery {
           query,
           limit,
           language: 'en',
-          region: 'US'
+          region: 'US',
+          coordinates: this.getCoordinatesForQuery(query),  // ADD PROPER GEOGRAPHIC TARGETING
+          radius: 50000  // 50km radius for precise city targeting
         },
         headers: {
           'X-API-KEY': this.apiKey
@@ -400,6 +402,125 @@ class ComprehensivePizzaDiscovery {
     }
     
     return found;
+  }
+
+  getCoordinatesForQuery(query: string): string {
+    // Extract city and state from query and return coordinates
+    const cityStateMapping: { [key: string]: string } = {
+      // Tier 1: Sourdough Strongholds
+      'Seattle WA': '47.6062,-122.3321',
+      'Portland OR': '45.5152,-122.6784', 
+      'San Francisco CA': '37.7749,-122.4194',
+      'Los Angeles CA': '34.0522,-118.2437',
+      'Austin TX': '30.2672,-97.7431',
+      'Brooklyn NY': '40.6782,-73.9442',
+      'Boulder CO': '40.0150,-105.2705',
+      'Asheville NC': '35.5951,-82.5515',
+      'Burlington VT': '44.4759,-73.2121',
+      'Madison WI': '43.0731,-89.4012',
+      'Providence RI': '41.8240,-71.4128',
+      
+      // Tier 2: Major Metros
+      'New York NY': '40.7128,-74.0060',
+      'Chicago IL': '41.8781,-87.6298',
+      'Boston MA': '42.3601,-71.0589',
+      'Denver CO': '39.7392,-104.9903',
+      'Philadelphia PA': '39.9526,-75.1652',
+      'Miami FL': '25.7617,-80.1918',
+      'Phoenix AZ': '33.4484,-112.0740',
+      'Dallas TX': '32.7767,-96.7970',
+      'Atlanta GA': '33.7490,-84.3880',
+      'Houston TX': '29.7604,-95.3698',
+      'Detroit MI': '42.3314,-83.0458',
+      'Minneapolis MN': '44.9778,-93.2650',
+      'Tampa FL': '27.9506,-82.4572',
+      'St. Louis MO': '38.6270,-90.1994',
+      'Baltimore MD': '39.2904,-76.6122',
+      
+      // Tier 3: Regional Centers
+      'San Diego CA': '32.7157,-117.1611',
+      'Nashville TN': '36.1627,-86.7816',
+      'Charlotte NC': '35.2271,-80.8431',
+      'Las Vegas NV': '36.1699,-115.1398',
+      'Orlando FL': '28.5383,-81.3792',
+      'Cleveland OH': '41.4993,-81.6944',
+      'Pittsburgh PA': '40.4406,-79.9959',
+      'Cincinnati OH': '39.1031,-84.5120',
+      'Kansas City MO': '39.0997,-94.5786',
+      'Indianapolis IN': '39.7684,-86.1581',
+      'Columbus OH': '39.9612,-82.9988',
+      'Milwaukee WI': '43.0389,-87.9065',
+      'Virginia Beach VA': '36.8529,-75.9780',
+      'Sacramento CA': '38.5816,-121.4944',
+      'Omaha NE': '41.2565,-95.9345',
+      'Raleigh NC': '35.7796,-78.6382',
+      'New Orleans LA': '29.9511,-90.0715',
+      'Memphis TN': '35.1495,-90.0490',
+      'Louisville KY': '38.2527,-85.7585',
+      'Richmond VA': '37.5407,-77.4360',
+      'Oklahoma City OK': '35.4676,-97.5164',
+      'Jacksonville FL': '30.3322,-81.6557',
+      'Tucson AZ': '32.2226,-110.9747',
+      'Fresno CA': '36.7378,-119.7871',
+      'Mesa AZ': '33.4152,-111.8315',
+      
+      // Tier 4: Growing Markets
+      'Colorado Springs CO': '38.8339,-104.8214',
+      'Albuquerque NM': '35.0844,-106.6504',
+      'Tulsa OK': '36.1540,-95.9928',
+      'Wichita KS': '37.6872,-97.3301',
+      'Arlington TX': '32.7357,-97.1081',
+      'Bakersfield CA': '35.3733,-119.0187',
+      'Aurora CO': '39.7294,-104.8319',
+      'Anaheim CA': '33.8366,-117.9143',
+      'Honolulu HI': '21.3099,-157.8581',
+      'Santa Ana CA': '33.7455,-117.8677',
+      'Corpus Christi TX': '27.8006,-97.3964',
+      'Riverside CA': '33.9533,-117.3962',
+      'Lexington KY': '38.0406,-84.5037',
+      'Stockton CA': '37.9577,-121.2908',
+      'St. Paul MN': '44.9537,-93.0900',
+      'Buffalo NY': '42.8864,-78.8784',
+      'Newark NJ': '40.7357,-74.1724',
+      'Plano TX': '33.0198,-96.6989',
+      'Fort Wayne IN': '41.0793,-85.1394',
+      'St. Petersburg FL': '27.7676,-82.6403',
+      'Jersey City NJ': '40.7178,-74.0431',
+      'Lincoln NE': '40.8136,-96.7026',
+      'Henderson NV': '36.0395,-114.9817',
+      'Greensboro NC': '36.0726,-79.7920',
+      'Chandler AZ': '33.3062,-111.8413',
+      'Chula Vista CA': '32.6401,-117.0842',
+      'Norfolk VA': '36.8468,-76.2852',
+      'North Las Vegas NV': '36.1989,-115.1175',
+      'Durham NC': '35.9940,-78.8986',
+      'Lubbock TX': '33.5779,-101.8552',
+      'Irvine CA': '33.6846,-117.8265',
+      'Winston-Salem NC': '36.0999,-80.2442',
+      'Glendale AZ': '33.5387,-112.1860',
+      'Garland TX': '32.9126,-96.6389',
+      'Hialeah FL': '25.8576,-80.2781',
+      'Reno NV': '39.5296,-119.8138',
+      'Baton Rouge LA': '30.4515,-91.1871',
+      'Irving TX': '32.8140,-96.9489',
+      'Chesapeake VA': '36.7682,-76.2875',
+      'Scottsdale AZ': '33.4942,-111.9261',
+      'Spokane WA': '47.6588,-117.4260',
+      'Fremont CA': '37.5485,-121.9886',
+      'San Bernardino CA': '34.1083,-117.2898',
+      'Gilbert AZ': '33.3528,-111.7890',
+      'Boise ID': '43.6150,-116.2023',
+      'Birmingham AL': '33.5207,-86.8025'
+    };
+
+    // Extract city and state from query
+    for (const [cityState, coords] of Object.entries(cityStateMapping)) {
+      if (query.includes(cityState)) {
+        return coords;
+      }
+    }
+    
+    return ''; // Default if not found
   }
 }
 
