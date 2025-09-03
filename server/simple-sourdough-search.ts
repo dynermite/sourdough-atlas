@@ -20,10 +20,11 @@ export async function simpleSearchCity(city: string, state: string): Promise<num
   
   let totalAdded = 0;
   
-  // Search 1: Location-first format for better geographic targeting
+  // Search 1: Sourdough pizza restaurants with full state name
+  const fullStateName = getFullStateName(state);
   try {
-    console.log(`   [1/2] Searching: "pizza ${city} ${state} sourdough"`);
-    const response1 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`pizza ${city} ${state} sourdough`)}&limit=20&language=en&region=US`, {
+    console.log(`   [1/2] Searching: "sourdough pizza restaurants in ${city} ${fullStateName}"`);
+    const response1 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`sourdough pizza restaurants in ${city} ${fullStateName}`)}&limit=20&language=en&region=US`, {
       method: 'GET',
       headers: {
         'X-API-KEY': process.env.OUTSCRAPER_API_KEY!
@@ -52,10 +53,10 @@ export async function simpleSearchCity(city: string, state: string): Promise<num
     console.log(`     Error: ${error.message}`);
   }
 
-  // Search 2: Location-first format for better geographic targeting  
+  // Search 2: Artisan pizza restaurants with full state name
   try {
-    console.log(`   [2/2] Searching: "pizza ${city} ${state} artisan"`);
-    const response2 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`pizza ${city} ${state} artisan`)}&limit=20&language=en&region=US`, {
+    console.log(`   [2/2] Searching: "artisan pizza restaurants in ${city} ${fullStateName}"`);
+    const response2 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`artisan pizza restaurants in ${city} ${fullStateName}`)}&limit=20&language=en&region=US`, {
       method: 'GET',
       headers: {
         'X-API-KEY': process.env.OUTSCRAPER_API_KEY!
@@ -498,4 +499,24 @@ function isValidWebsite(url: string): boolean {
   ];
   
   return !skipPatterns.some(pattern => url.toLowerCase().includes(pattern));
+}
+
+function getFullStateName(stateCode: string): string {
+  const stateMap: { [key: string]: string } = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas',
+    'CA': 'California', 'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware',
+    'FL': 'Florida', 'GA': 'Georgia', 'HI': 'Hawaii', 'ID': 'Idaho',
+    'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa', 'KS': 'Kansas',
+    'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi',
+    'MO': 'Missouri', 'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada',
+    'NH': 'New Hampshire', 'NJ': 'New Jersey', 'NM': 'New Mexico', 'NY': 'New York',
+    'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio', 'OK': 'Oklahoma',
+    'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah',
+    'VT': 'Vermont', 'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia',
+    'WI': 'Wisconsin', 'WY': 'Wyoming'
+  };
+  
+  return stateMap[stateCode] || stateCode;
 }
