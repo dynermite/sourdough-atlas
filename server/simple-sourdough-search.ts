@@ -11,24 +11,29 @@ export async function simpleSearchCity(city: string, state: string): Promise<num
   // Search 1: "sourdough pizza [city] [state]"
   try {
     console.log(`   [1/2] Searching: "sourdough pizza ${city} ${state}"`);
-    const response1 = await fetch('https://api.outscraper.com/maps/search-v2', {
-      method: 'POST',
+    const response1 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`sourdough pizza ${city} ${state}`)}&limit=20&language=en&region=US`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'X-API-KEY': process.env.OUTSCRAPER_API_KEY!
-      },
-      body: JSON.stringify({
-        query: [`sourdough pizza ${city} ${state}`],
-        limit: 20,
-        language: 'en'
-      })
+      }
     });
 
     if (response1.ok) {
       const data1 = await response1.json();
-      if (data1?.[0]) {
-        console.log(`     Found: ${data1[0].length} results`);
-        totalAdded += await processResults(data1[0], city, state);
+      if (data1.status === 'Success' && data1.data) {
+        let results = data1.data;
+        if (Array.isArray(results) && results.length > 0 && Array.isArray(results[0])) {
+          results = results.flat();
+        }
+        console.log(`     Found: ${results.length} results`);
+        totalAdded += await processResults(results, city, state);
+      } else if (data1.status === 'Pending') {
+        console.log(`     Request pending (ID: ${data1.id}), waiting for results...`);
+        const pendingResults = await waitForResults(data1.id);
+        if (pendingResults.length > 0) {
+          console.log(`     Found: ${pendingResults.length} results`);
+          totalAdded += await processResults(pendingResults, city, state);
+        }
       }
     }
   } catch (error) {
@@ -38,24 +43,29 @@ export async function simpleSearchCity(city: string, state: string): Promise<num
   // Search 2: "artisan pizza [city] [state]"
   try {
     console.log(`   [2/2] Searching: "artisan pizza ${city} ${state}"`);
-    const response2 = await fetch('https://api.outscraper.com/maps/search-v2', {
-      method: 'POST',
+    const response2 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`artisan pizza ${city} ${state}`)}&limit=20&language=en&region=US`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'X-API-KEY': process.env.OUTSCRAPER_API_KEY!
-      },
-      body: JSON.stringify({
-        query: [`artisan pizza ${city} ${state}`],
-        limit: 20,
-        language: 'en'
-      })
+      }
     });
 
     if (response2.ok) {
       const data2 = await response2.json();
-      if (data2?.[0]) {
-        console.log(`     Found: ${data2[0].length} results`);
-        totalAdded += await processResults(data2[0], city, state);
+      if (data2.status === 'Success' && data2.data) {
+        let results = data2.data;
+        if (Array.isArray(results) && results.length > 0 && Array.isArray(results[0])) {
+          results = results.flat();
+        }
+        console.log(`     Found: ${results.length} results`);
+        totalAdded += await processResults(results, city, state);
+      } else if (data2.status === 'Pending') {
+        console.log(`     Request pending (ID: ${data2.id}), waiting for results...`);
+        const pendingResults = await waitForResults(data2.id);
+        if (pendingResults.length > 0) {
+          console.log(`     Found: ${pendingResults.length} results`);
+          totalAdded += await processResults(pendingResults, city, state);
+        }
       }
     }
   } catch (error) {
@@ -66,19 +76,63 @@ export async function simpleSearchCity(city: string, state: string): Promise<num
   return totalAdded;
 }
 
+async function waitForResults(requestId: string): Promise<any[]> {
+  for (let i = 0; i < 12; i++) { // Wait up to 2 minutes
+    try {
+      const response = await fetch(`https://api.outscraper.com/requests/${requestId}`, {
+        headers: {
+          'X-API-KEY': process.env.OUTSCRAPER_API_KEY!
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.status === 'Success' && data.data) {
+          let results = data.data;
+          if (Array.isArray(results) && results.length > 0 && Array.isArray(results[0])) {
+            results = results.flat();
+          }
+          return results || [];
+        } else if (data.status === 'Pending') {
+          await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+          continue;
+        } else {
+          console.log(`     Request failed: ${data.status}`);
+          return [];
+        }
+      }
+    } catch (error) {
+      console.log(`     Polling error: ${error.message}`);
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 10000));
+  }
+  
+  console.log(`     Timeout waiting for results`);
+  return [];
+}
+
 async function processResults(results: any[], city: string, state: string): Promise<number> {
   let added = 0;
   
+  console.log(`     🔍 Processing ${results.length} results...`);
+  
   for (const place of results) {
-    if (!place.name || !place.full_address) continue;
+    if (!place.name) continue;
     
-    // Simple sourdough keyword filter
-    const hasKeywords = place.name.toLowerCase().includes('sourdough') ||
-                       place.description?.toLowerCase().includes('sourdough') ||
-                       place.description?.toLowerCase().includes('naturally leavened') ||
-                       place.description?.toLowerCase().includes('wild yeast');
+    // Debug: Show what we're looking at
+    console.log(`       Checking: ${place.name}`);
+    console.log(`         Category: ${place.category}`);
+    console.log(`         Description: ${place.description?.substring(0, 100) || 'No description'}`);
     
-    if (hasKeywords && place.category?.toLowerCase().includes('pizza')) {
+    // Since we're searching for "sourdough pizza" specifically, most results should be relevant
+    // For now, let's be less strict and see what we get
+    const isRelevant = place.name.toLowerCase().includes('pizza') ||
+                      place.category?.toLowerCase().includes('pizza') ||
+                      place.description?.toLowerCase().includes('pizza');
+    
+    if (isRelevant) {
       // Check for duplicates
       const existing = await db.select()
         .from(restaurants)
