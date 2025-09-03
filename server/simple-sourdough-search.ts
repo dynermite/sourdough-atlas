@@ -1,8 +1,20 @@
 import { db } from './db';
 import { restaurants } from '@shared/schema';
 import { sql } from 'drizzle-orm';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
-// ORIGINAL SIMPLE APPROACH: Just search for sourdough/artisan and filter
+const SOURDOUGH_KEYWORDS = ['sourdough', 'naturally leavened', 'wild yeast', 'naturally fermented'];
+
+interface VerificationResult {
+  verified: boolean;
+  sources: string[];
+  keywords: string[];
+  confidence: 'high' | 'medium' | 'low';
+  details: string;
+}
+
+// ENHANCED SIMPLE APPROACH: Search + Full 5-Step Verification
 export async function simpleSearchCity(city: string, state: string): Promise<number> {
   console.log(`🎯 SIMPLE SEARCH: ${city}, ${state}`);
   
@@ -144,23 +156,37 @@ async function processResults(results: any[], city: string, state: string): Prom
         .limit(1);
         
       if (existing.length === 0) {
-        await db.insert(restaurants).values({
-          name: place.name,
-          address: place.full_address,
-          city: city,
-          state: state,
-          phone: place.phone || '',
-          website: place.site || '',
-          rating: place.rating || 0,
-          reviewCount: place.reviews_count || 0,
-          latitude: place.latitude || 0,
-          longitude: place.longitude || 0,
-          keywords: ['sourdough'],
-          verificationSources: ['simple_search']
-        });
+        console.log(`     🔍 Verifying: ${place.name}`);
         
-        added++;
-        console.log(`     ✅ ${place.name}`);
+        // FULL 5-STEP VERIFICATION PROCESS
+        const verification = await verifyRestaurantSourdough(place);
+        
+        if (verification.verified) {
+          // Only add restaurants with verified sourdough claims
+          await db.insert(restaurants).values({
+            name: place.name,
+            address: place.full_address,
+            city: city,
+            state: state,
+            phone: place.phone || '',
+            website: place.site || '',
+            rating: place.rating || 0,
+            reviewCount: place.reviews_count || 0,
+            latitude: place.latitude || 0,
+            longitude: place.longitude || 0,
+            keywords: verification.keywords,
+            verificationSources: verification.sources
+          });
+          
+          console.log(`     ✅ VERIFIED: ${place.name}`);
+          console.log(`       Sources: ${verification.sources.join(', ')}`);
+          console.log(`       Keywords: ${verification.keywords.join(', ')}`);
+          console.log(`       Confidence: ${verification.confidence}`);
+          added++;
+        } else {
+          console.log(`     ❌ NO SOURDOUGH: ${place.name}`);
+          console.log(`       ${verification.details}`);
+        }
       }
     }
   }
@@ -204,4 +230,272 @@ export async function runSimpleSearch(): Promise<void> {
   }
   
   console.log(`\n🌟 SIMPLE SEARCH COMPLETE: +${total} establishments`);
+}
+
+// ===============================================
+// COMPREHENSIVE 5-STEP VERIFICATION SYSTEM
+// ===============================================
+
+async function verifyRestaurantSourdough(place: any): Promise<VerificationResult> {
+  const sources: string[] = [];
+  const keywords: string[] = [];
+  let confidence: 'high' | 'medium' | 'low' = 'low';
+  let details = '';
+
+  // STEP 1: Check Google Business Profile description
+  const profileKeywords = findSourdoughKeywords(place.description || '');
+  if (profileKeywords.length > 0) {
+    sources.push('Google Business Profile');
+    keywords.push(...profileKeywords);
+    details += `Google profile mentions: ${profileKeywords.join(', ')}. `;
+  }
+
+  // STEP 2: Check restaurant website if available
+  const website = place.site || place.website;
+  if (website && isValidWebsite(website)) {
+    try {
+      console.log(`       🌐 Checking website: ${website}`);
+      const websiteKeywords = await analyzeRestaurantWebsite(website);
+      
+      if (websiteKeywords.length > 0) {
+        sources.push('Restaurant Website');
+        keywords.push(...websiteKeywords);
+        details += `Website mentions: ${websiteKeywords.join(', ')}. `;
+      }
+      
+    } catch (error) {
+      console.log(`       ⚠️  Website analysis failed: ${error.message}`);
+    }
+  }
+
+  // STEP 3: Check Instagram profiles
+  try {
+    const instagramKeywords = await checkInstagramForSourdough(place.name);
+    if (instagramKeywords.length > 0) {
+      sources.push('Instagram');
+      keywords.push(...instagramKeywords);
+      details += `Instagram mentions: ${instagramKeywords.join(', ')}. `;
+    }
+  } catch (error) {
+    console.log(`       ⚠️  Instagram check failed: ${error.message}`);
+  }
+
+  // STEP 4: Check Facebook profiles
+  try {
+    const facebookKeywords = await checkFacebookForSourdough(place.name);
+    if (facebookKeywords.length > 0) {
+      sources.push('Facebook');
+      keywords.push(...facebookKeywords);
+      details += `Facebook mentions: ${facebookKeywords.join(', ')}. `;
+    }
+  } catch (error) {
+    console.log(`       ⚠️  Facebook check failed: ${error.message}`);
+  }
+
+  // Determine confidence level
+  if (sources.length >= 2) {
+    confidence = 'high'; // Multiple sources
+  } else if (sources.length === 1 && keywords.length >= 2) {
+    confidence = 'medium'; // Single source, multiple keywords
+  } else if (sources.length === 1) {
+    confidence = 'low'; // Single source, single keyword
+  }
+
+  const verified = keywords.length > 0;
+
+  return {
+    verified,
+    sources,
+    keywords: [...new Set(keywords)], // Remove duplicates
+    confidence,
+    details: details.trim() || 'No sourdough claims found in available sources'
+  };
+}
+
+function findSourdoughKeywords(text: string): string[] {
+  const foundKeywords: string[] = [];
+  const lowerText = text.toLowerCase();
+  
+  for (const keyword of SOURDOUGH_KEYWORDS) {
+    if (lowerText.includes(keyword)) {
+      foundKeywords.push(keyword);
+    }
+    
+    const hyphenated = keyword.replace(' ', '-');
+    if (hyphenated !== keyword && lowerText.includes(hyphenated)) {
+      foundKeywords.push(`${keyword} (${hyphenated})`);
+    }
+  }
+  
+  return foundKeywords;
+}
+
+async function analyzeRestaurantWebsite(websiteUrl: string): Promise<string[]> {
+  try {
+    let url = websiteUrl.trim();
+    if (!url.startsWith('http')) {
+      url = 'https://' + url;
+    }
+
+    const response = await axios.get(url, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      maxRedirects: 3
+    });
+
+    const $ = cheerio.load(response.data);
+    
+    const textSections = [
+      $('title').text(),
+      $('meta[name="description"]').attr('content') || '',
+      $('h1, h2, h3').text(),
+      $('.menu, .about, .story, .description').text(),
+      $('p').text()
+    ];
+
+    const combinedText = textSections.join(' ');
+    return findSourdoughKeywords(combinedText);
+
+  } catch (error) {
+    throw new Error(`Website scraping failed: ${error.message}`);
+  }
+}
+
+async function checkInstagramForSourdough(restaurantName: string): Promise<string[]> {
+  try {
+    const potentialUsernames = generateInstagramUsernames(restaurantName);
+    
+    for (const username of potentialUsernames.slice(0, 2)) {
+      try {
+        const bio = await getInstagramBio(username);
+        if (bio) {
+          const keywords = findSourdoughKeywords(bio);
+          if (keywords.length > 0) {
+            console.log(`       📱 Instagram @${username}: ${keywords.join(', ')}`);
+            return keywords;
+          }
+        }
+      } catch {}
+    }
+    
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function checkFacebookForSourdough(restaurantName: string): Promise<string[]> {
+  try {
+    const potentialPages = generateFacebookPageNames(restaurantName);
+    
+    for (const pageName of potentialPages.slice(0, 2)) {
+      try {
+        const description = await getFacebookDescription(pageName);
+        if (description) {
+          const keywords = findSourdoughKeywords(description);
+          if (keywords.length > 0) {
+            console.log(`       📘 Facebook ${pageName}: ${keywords.join(', ')}`);
+            return keywords;
+          }
+        }
+      } catch {}
+    }
+    
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+async function getInstagramBio(username: string): Promise<string> {
+  try {
+    if (!process.env.OUTSCRAPER_API_KEY) return '';
+    
+    const response = await axios.get('https://api.outscraper.com/google-search-v3', {
+      params: {
+        query: `site:instagram.com/${username}`,
+        limit: 1,
+        async: false
+      },
+      headers: {
+        'X-API-KEY': process.env.OUTSCRAPER_API_KEY
+      },
+      timeout: 8000
+    });
+    
+    if (response.data?.data?.[0]?.[0]) {
+      const result = response.data.data[0][0];
+      return result.description || result.snippet || '';
+    }
+    
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+async function getFacebookDescription(pageName: string): Promise<string> {
+  try {
+    if (!process.env.OUTSCRAPER_API_KEY) return '';
+    
+    const response = await axios.get('https://api.outscraper.com/google-search-v3', {
+      params: {
+        query: `site:facebook.com/${pageName}`,
+        limit: 1,
+        async: false
+      },
+      headers: {
+        'X-API-KEY': process.env.OUTSCRAPER_API_KEY
+      },
+      timeout: 8000
+    });
+    
+    if (response.data?.data?.[0]?.[0]) {
+      const result = response.data.data[0][0];
+      return result.description || result.snippet || '';
+    }
+    
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+function generateInstagramUsernames(restaurantName: string): string[] {
+  const clean = restaurantName.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '');
+  
+  return [
+    clean,
+    clean + 'pizza',
+    clean + 'restaurant',
+    clean.replace('pizza', '')
+  ];
+}
+
+function generateFacebookPageNames(restaurantName: string): string[] {
+  const clean = restaurantName.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '');
+  
+  return [
+    clean,
+    restaurantName.replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '-'),
+    clean + '-restaurant',
+    clean + '-pizza'
+  ];
+}
+
+function isValidWebsite(url: string): boolean {
+  if (!url) return false;
+  
+  const skipPatterns = [
+    'yelp.com', 'google.com', 'facebook.com', 'instagram.com',
+    'grubhub.com', 'doordash.com', 'ubereats.com'
+  ];
+  
+  return !skipPatterns.some(pattern => url.toLowerCase().includes(pattern));
 }
