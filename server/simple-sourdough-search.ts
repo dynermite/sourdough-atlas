@@ -8,10 +8,10 @@ export async function simpleSearchCity(city: string, state: string): Promise<num
   
   let totalAdded = 0;
   
-  // Search 1: "sourdough pizza [city] [state]"
+  // Search 1: Location-first format for better geographic targeting
   try {
-    console.log(`   [1/2] Searching: "sourdough pizza ${city} ${state}"`);
-    const response1 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`sourdough pizza ${city} ${state}`)}&limit=20&language=en&region=US`, {
+    console.log(`   [1/2] Searching: "pizza ${city} ${state} sourdough"`);
+    const response1 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`pizza ${city} ${state} sourdough`)}&limit=20&language=en&region=US`, {
       method: 'GET',
       headers: {
         'X-API-KEY': process.env.OUTSCRAPER_API_KEY!
@@ -40,10 +40,10 @@ export async function simpleSearchCity(city: string, state: string): Promise<num
     console.log(`     Error: ${error.message}`);
   }
 
-  // Search 2: "artisan pizza [city] [state]"
+  // Search 2: Location-first format for better geographic targeting  
   try {
-    console.log(`   [2/2] Searching: "artisan pizza ${city} ${state}"`);
-    const response2 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`artisan pizza ${city} ${state}`)}&limit=20&language=en&region=US`, {
+    console.log(`   [2/2] Searching: "pizza ${city} ${state} artisan"`);
+    const response2 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`pizza ${city} ${state} artisan`)}&limit=20&language=en&region=US`, {
       method: 'GET',
       headers: {
         'X-API-KEY': process.env.OUTSCRAPER_API_KEY!
@@ -123,16 +123,20 @@ async function processResults(results: any[], city: string, state: string): Prom
     
     // Debug: Show what we're looking at
     console.log(`       Checking: ${place.name}`);
+    console.log(`         Address: ${place.full_address || place.address || 'No address'}`);
     console.log(`         Category: ${place.category}`);
-    console.log(`         Description: ${place.description?.substring(0, 100) || 'No description'}`);
     
-    // Since we're searching for "sourdough pizza" specifically, most results should be relevant
-    // For now, let's be less strict and see what we get
-    const isRelevant = place.name.toLowerCase().includes('pizza') ||
-                      place.category?.toLowerCase().includes('pizza') ||
-                      place.description?.toLowerCase().includes('pizza');
+    // Geographic filtering: ensure restaurant is actually in the target city
+    const address = (place.full_address || place.address || '').toLowerCase();
+    const isInTargetCity = address.includes(city.toLowerCase()) || 
+                          address.includes(state.toLowerCase());
     
-    if (isRelevant) {
+    // Pizza restaurant filter  
+    const isPizzaRelated = place.name.toLowerCase().includes('pizza') ||
+                          place.category?.toLowerCase().includes('pizza') ||
+                          place.description?.toLowerCase().includes('pizza');
+    
+    if (isPizzaRelated && isInTargetCity) {
       // Check for duplicates
       const existing = await db.select()
         .from(restaurants)
