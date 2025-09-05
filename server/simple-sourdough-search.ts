@@ -20,11 +20,10 @@ export async function simpleSearchCity(city: string, state: string): Promise<num
   
   let totalAdded = 0;
   
-  // Search 1: Sourdough pizza restaurants with full state name
-  const fullStateName = getFullStateName(state);
+  // Search 1: Original working format
   try {
-    console.log(`   [1/2] Searching: "sourdough pizza restaurants in ${city} ${fullStateName}"`);
-    const response1 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`sourdough pizza restaurants in ${city} ${fullStateName}`)}&limit=20&language=en&region=US`, {
+    console.log(`   [1/2] Searching: "pizza ${city} ${state} sourdough"`);
+    const response1 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`pizza ${city} ${state} sourdough`)}&limit=20&language=en&region=US`, {
       method: 'GET',
       headers: {
         'X-API-KEY': process.env.OUTSCRAPER_API_KEY!
@@ -53,10 +52,10 @@ export async function simpleSearchCity(city: string, state: string): Promise<num
     console.log(`     Error: ${error.message}`);
   }
 
-  // Search 2: Artisan pizza restaurants with full state name
+  // Search 2: Original working format
   try {
-    console.log(`   [2/2] Searching: "artisan pizza restaurants in ${city} ${fullStateName}"`);
-    const response2 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`artisan pizza restaurants in ${city} ${fullStateName}`)}&limit=20&language=en&region=US`, {
+    console.log(`   [2/2] Searching: "pizza ${city} ${state} artisan"`);
+    const response2 = await fetch(`https://api.outscraper.com/maps/search-v3?query=${encodeURIComponent(`pizza ${city} ${state} artisan`)}&limit=20&language=en&region=US`, {
       method: 'GET',
       headers: {
         'X-API-KEY': process.env.OUTSCRAPER_API_KEY!
