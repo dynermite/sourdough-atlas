@@ -5,6 +5,7 @@ import { insertRestaurantSchema } from "@shared/schema";
 import { registerScrapeRoutes } from "./scrape-routes";
 import { z } from "zod";
 import { discoverAuthenticSourdough } from "./outscraper-integration";
+import path from "path";
 
 // Helper function to trigger area discovery
 async function triggerAreaDiscovery(bounds: { north: number; south: number; east: number; west: number; zoom: number }) {
@@ -424,6 +425,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Download project archive endpoint
+  app.get('/download-project', (req, res) => {
+    const filePath = path.join(__dirname, '..', 'sourdough-scout-complete.tar.gz');
+    res.download(filePath, 'sourdough-scout-complete.tar.gz', (err) => {
+      if (err) {
+        console.error('Download error:', err);
+        res.status(404).send('File not found');
+      }
+    });
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
+
