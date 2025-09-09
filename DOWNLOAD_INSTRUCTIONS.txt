@@ -1,0 +1,20 @@
+SOURDOUGH SCOUT - COMPLETE PROJECT EXPORT
+
+The file "sourdough-scout-complete.tar.gz" (317KB) is in this project's root directory.
+
+TO DOWNLOAD:
+1. Look in the file tree (left panel in Replit)
+2. Find: sourdough-scout-complete.tar.gz
+3. Right-click the file → "Download"
+
+TO USE IN VS CODE:
+tar -xzf sourdough-scout-complete.tar.gz
+cd sourdough-scout-export
+code .
+npm install
+
+CONTAINS:
+✓ 53 verified SF sourdough restaurants
+✓ Complete React + Express codebase  
+✓ Interactive map system
+✓ Discovery tools that found 25+ establishments
