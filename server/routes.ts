@@ -404,44 +404,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Seed verified restaurants (admin endpoint)
   app.post("/api/admin/seed-verified", async (_req, res) => {
     try {
-      const { verifiedSourdoughRestaurants } = await import('./verified-restaurants');
-      let addedCount = 0;
-      
-      for (const restaurant of verifiedSourdoughRestaurants) {
-        const zipCode = restaurant.address.match(/\d{5}(-\d{4})?/)?.[0] || '';
-        
-        const restaurantData = {
-          name: restaurant.name,
-          address: restaurant.address,
-          city: restaurant.city,
-          state: restaurant.state,
-          zipCode,
-          phone: restaurant.phone,
-          website: restaurant.website,
-          description: restaurant.description,
-          sourdoughVerified: 1 as const,
-          sourdoughKeywords: restaurant.sourdoughKeywords,
-          latitude: restaurant.latitude,
-          longitude: restaurant.longitude,
-          reviews: [`Verified authentic sourdough - ${restaurant.verificationSource}`]
-        };
-        
-        try {
-          await storage.addRestaurant(restaurantData);
-          addedCount++;
-          console.log(`Added: ${restaurant.name} in ${restaurant.city}, ${restaurant.state}`);
-        } catch (error) {
-          console.log(`Skipped (likely exists): ${restaurant.name} in ${restaurant.city}, ${restaurant.state}`);
-        }
-      }
+      const { seedVerifiedComprehensiveDatabase } = await import('./verified-restaurants');
+      const result = await seedVerifiedComprehensiveDatabase();
       
       res.json({ 
-        message: `Seeded ${addedCount} verified restaurants`, 
-        addedCount 
+        message: "Verified restaurants seeded successfully", 
+        imported: result.imported,
+        skipped: result.skipped,
+        cityStats: result.cityStats,
+        stateStats: result.stateStats
       });
     } catch (error) {
-      console.error("Error seeding verified restaurants:", error);
-      res.status(500).json({ error: "Failed to seed verified restaurants" });
+      console.error('Error seeding verified restaurants:', error);
+      res.status(500).json({ message: "Failed to seed verified restaurants", error: error.message });
     }
   });
 

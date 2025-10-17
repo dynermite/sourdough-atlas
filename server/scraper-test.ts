@@ -2,7 +2,7 @@
 
 import { startScraping } from './scraper';
 import { storage } from './storage';
-import { verifiedSourdoughRestaurants } from './verified-restaurants';
+import { seedVerifiedComprehensiveDatabase } from './verified-restaurants';
 
 interface TestResult {
   city: string;
