@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SourDough Scout - Find Naturally Leavened Pizza Across America</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'warm-orange': '#D2691E',
+                        'saddle-brown': '#8B4513',
+                        'tomato': '#FF6347',
+                        'warm-beige': '#F5F5DC',
+                        'warm-white': '#FAFAF8'
+                    },
+                    fontFamily: {
+                        'bold': ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+
+<body class="bg-warm-white text-gray-900">
+    <!-- @COMPONENT: Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-pizza-slice text-2xl text-warm-orange mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">SourDough Scout</h1>
+                </div>
+                <div class="hidden md:flex space-x-8">
+                    <a href="#map" class="text-gray-700 hover:text-warm-orange transition-colors">Map</a>
+                    <a href="#search" class="text-gray-700 hover:text-warm-orange transition-colors">Search</a>
+                    <a href="#about" class="text-gray-700 hover:text-warm-orange transition-colors">About</a>
+                </div>
+                <div class="md:hidden">
+                    <i class="fas fa-bars text-gray-700"></i>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <!-- @END_COMPONENT: Header -->
+
+    <!-- @COMPONENT: Hero Section -->
+    <section class="relative bg-gradient-to-br from-warm-orange to-saddle-brown text-white py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-6xl font-black mb-6 leading-tight">
+                    DISCOVER<br>
+                    <span class="text-warm-beige">SOURDOUGH PIZZA</span><br>
+                    ACROSS AMERICA
+                </h1>
+                <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto font-light">
+                    Find authentic naturally leavened pizza restaurants on your journey. 
+                    Perfect for travelers seeking that perfect sourdough crust.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button class="bg-white text-warm-orange px-8 py-4 rounded-lg font-bold text-lg hover:bg-warm-beige transition-colors">
+                        <i class="fas fa-map-marked-alt mr-2"></i>
+                        Explore Map
+                    </button>
+                    <button class="border-2 border-white text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-white hover:text-warm-orange transition-colors">
+                        <i class="fas fa-search mr-2"></i>
+                        Search by City
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: Hero Section -->
+
+    <!-- @COMPONENT: Search Section -->
+    <section id="search" class="py-16 bg-white">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    FIND SOURDOUGH PIZZA
+                    <span class="block text-warm-orange">IN YOUR CITY</span>
+                </h2>
+                <p class="text-lg text-gray-600">Search by city or state to discover authentic sourdough pizzerias</p>
+            </div>
+            
+            <div class="bg-gray-50 rounded-2xl p-8">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex-1">
+                        <input 
+                            type="text" 
+                            placeholder="Enter city or state (e.g., San Francisco, CA)"
+                            class="w-full px-6 py-4 rounded-lg border border-gray-300 focus:border-warm-orange focus:ring-2 focus:ring-warm-orange focus:ring-opacity-20 outline-none text-lg"
+                            data-mock="true"
+                            data-bind="searchQuery">
+                    </div>
+                    <button class="bg-warm-orange text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-opacity-90 transition-colors">
+                        <i class="fas fa-search mr-2"></i>
+                        Search
+                    </button>
+                </div>
+                
+                <div class="mt-6 flex flex-wrap gap-2">
+                    <span class="text-sm text-gray-600 mr-2">Popular searches:</span>
+                    <button class="text-sm bg-white px-3 py-1 rounded-full border hover:border-warm-orange transition-colors" data-mock="true">San Francisco</button>
+                    <button class="text-sm bg-white px-3 py-1 rounded-full border hover:border-warm-orange transition-colors" data-mock="true">New York</button>
+                    <button class="text-sm bg-white px-3 py-1 rounded-full border hover:border-warm-orange transition-colors" data-mock="true">Portland</button>
+                    <button class="text-sm bg-white px-3 py-1 rounded-full border hover:border-warm-orange transition-colors" data-mock="true">Seattle</button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: Search Section -->
+
+    <!-- @COMPONENT: Interactive Map Section -->
+    <section id="map" class="py-16 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    INTERACTIVE
+                    <span class="block text-warm-orange">RESTAURANT MAP</span>
+                </h2>
+                <p class="text-lg text-gray-600">Click on any marker to see restaurant details and get directions</p>
+            </div>
+
+            <!-- Mock Interactive Map -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="h-96 md:h-[500px] bg-gradient-to-br from-blue-100 to-green-100 relative">
+                    <!-- @FUNCTIONALITY: This should implement Google Maps API with restaurant location markers -->
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <!-- Mock US Map with Restaurant Markers -->
+                        <div class="relative w-full h-full">
+                            <!-- Mock map background -->
+                            <div class="absolute inset-4 rounded-lg" style="background-image: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 800 400\" fill=\"%23E5E5E5\"><rect width=\"800\" height=\"400\" fill=\"%23F0F8FF\"/><path d=\"M100 200 Q 200 180 300 200 T 500 200 Q 600 220 700 200 L 700 350 Q 600 330 500 350 T 300 350 Q 200 370 100 350 Z\" fill=\"%23D4D4AA\"/></svg>'); background-size: cover; background-position: center;"></div>
+                            
+                            <!-- Mock Restaurant Markers -->
+                            <div class="absolute top-20 left-20 bg-warm-orange text-white p-2 rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform" data-mock="true">
+                                <i class="fas fa-pizza-slice"></i>
+                            </div>
+                            <div class="absolute top-32 left-40 bg-warm-orange text-white p-2 rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform" data-mock="true">
+                                <i class="fas fa-pizza-slice"></i>
+                            </div>
+                            <div class="absolute top-24 right-32 bg-warm-orange text-white p-2 rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform" data-mock="true">
+                                <i class="fas fa-pizza-slice"></i>
+                            </div>
+                            <div class="absolute bottom-24 left-32 bg-warm-orange text-white p-2 rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform" data-mock="true">
+                                <i class="fas fa-pizza-slice"></i>
+                            </div>
+                            <div class="absolute bottom-32 right-40 bg-warm-orange text-white p-2 rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform" data-mock="true">
+                                <i class="fas fa-pizza-slice"></i>
+                            </div>
+                            
+                            <!-- Map Controls -->
+                            <div class="absolute top-4 right-4 flex flex-col gap-2">
+                                <button class="bg-white p-2 rounded shadow hover:bg-gray-50">
+                                    <i class="fas fa-plus text-gray-700"></i>
+                                </button>
+                                <button class="bg-white p-2 rounded shadow hover:bg-gray-50">
+                                    <i class="fas fa-minus text-gray-700"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Map Legend -->
+                <div class="p-4 border-t bg-gray-50">
+                    <div class="flex items-center justify-center gap-6 text-sm">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 bg-warm-orange rounded-full"></div>
+                            <span>Verified Sourdough Pizza</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-route text-gray-600"></i>
+                            <span>Click for directions</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: Interactive Map Section -->
+
+    <!-- @COMPONENT: Restaurant Listings -->
+    <section class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    FEATURED
+                    <span class="block text-warm-orange">SOURDOUGH SPOTS</span>
+                </h2>
+                <p class="text-lg text-gray-600">Discover authentic naturally leavened pizza restaurants</p>
+            </div>
+
+            <!-- Filter Controls -->
+            <div class="flex flex-wrap gap-4 justify-center mb-12">
+                <button class="bg-warm-orange text-white px-4 py-2 rounded-full font-medium">All Regions</button>
+                <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition-colors">West Coast</button>
+                <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition-colors">East Coast</button>
+                <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition-colors">Midwest</button>
+                <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded-full font-medium hover:bg-gray-300 transition-colors">South</button>
+            </div>
+
+            <!-- @MAP: restaurants.map(restaurant => ( -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Restaurant Card 1 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow" data-mock="true">
+                    <!-- Professional photo of artisanal sourdough pizza with charred crust -->
+                    <img src="https://images.unsplash.com/photo-1513104890138-7c749659a591?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=400" alt="Artisanal sourdough pizza" class="w-full h-48 object-cover" />
+                    
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xl font-bold text-gray-900" data-bind="restaurant.name">Tony's Sourdough Kitchen</h3>
+                            <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Verified
+                            </div>
+                        </div>
+                        
+                        <p class="text-gray-600 mb-3" data-bind="restaurant.location">San Francisco, CA</p>
+                        
+                        <div class="bg-warm-beige p-3 rounded-lg mb-4">
+                            <p class="text-sm text-gray-700">
+                                <i class="fas fa-quote-left text-warm-orange mr-1"></i>
+                                "Our naturally leavened sourdough crust is fermented for 72 hours..."
+                            </p>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm text-gray-600 mb-4">
+                            <span><i class="fas fa-star text-yellow-400 mr-1"></i>4.8 (127 reviews)</span>
+                            <span><i class="fas fa-clock mr-1"></i>2.3 miles</span>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button class="flex-1 bg-warm-orange text-white py-2 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-colors">
+                                <i class="fas fa-directions mr-2"></i>
+                                Directions
+                            </button>
+                            <button class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restaurant Card 2 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow" data-mock="true">
+                    <!-- Wood-fired oven with glowing flames and pizza -->
+                    <img src="https://images.unsplash.com/photo-1571066811602-716837d681de?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=400" alt="Wood-fired pizza oven" class="w-full h-48 object-cover" />
+                    
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xl font-bold text-gray-900" data-bind="restaurant.name">Naturally Leavened Co.</h3>
+                            <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Verified
+                            </div>
+                        </div>
+                        
+                        <p class="text-gray-600 mb-3" data-bind="restaurant.location">Portland, OR</p>
+                        
+                        <div class="bg-warm-beige p-3 rounded-lg mb-4">
+                            <p class="text-sm text-gray-700">
+                                <i class="fas fa-quote-left text-warm-orange mr-1"></i>
+                                "Wild yeast sourdough starter cultivated over 15 years..."
+                            </p>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm text-gray-600 mb-4">
+                            <span><i class="fas fa-star text-yellow-400 mr-1"></i>4.9 (89 reviews)</span>
+                            <span><i class="fas fa-clock mr-1"></i>0.8 miles</span>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button class="flex-1 bg-warm-orange text-white py-2 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-colors">
+                                <i class="fas fa-directions mr-2"></i>
+                                Directions
+                            </button>
+                            <button class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restaurant Card 3 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow" data-mock="true">
+                    <!-- Rustic pizzeria interior with exposed brick and wood -->
+                    <img src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=400" alt="Rustic pizzeria interior" class="w-full h-48 object-cover" />
+                    
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xl font-bold text-gray-900" data-bind="restaurant.name">Heritage Crust</h3>
+                            <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Verified
+                            </div>
+                        </div>
+                        
+                        <p class="text-gray-600 mb-3" data-bind="restaurant.location">Brooklyn, NY</p>
+                        
+                        <div class="bg-warm-beige p-3 rounded-lg mb-4">
+                            <p class="text-sm text-gray-700">
+                                <i class="fas fa-quote-left text-warm-orange mr-1"></i>
+                                "Traditional sourdough methods passed down through generations..."
+                            </p>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm text-gray-600 mb-4">
+                            <span><i class="fas fa-star text-yellow-400 mr-1"></i>4.7 (203 reviews)</span>
+                            <span><i class="fas fa-clock mr-1"></i>1.2 miles</span>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button class="flex-1 bg-warm-orange text-white py-2 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-colors">
+                                <i class="fas fa-directions mr-2"></i>
+                                Directions
+                            </button>
+                            <button class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restaurant Card 4 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow" data-mock="true">
+                    <!-- Close-up of bubbling sourdough pizza dough -->
+                    <img src="https://pixabay.com/get/g7dfe45595a04d3f3aac972762703a564c398d4b7e5b64451d1c07ee3a94fedc5ea1d321dc7094ee5ae6e0c4806dfe98cd2da95d62c735df481f9470045b73a92_1280.jpg" alt="Fresh pizza dough preparation" class="w-full h-48 object-cover" />
+                    
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xl font-bold text-gray-900" data-bind="restaurant.name">Wild Yeast Pizzeria</h3>
+                            <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Verified
+                            </div>
+                        </div>
+                        
+                        <p class="text-gray-600 mb-3" data-bind="restaurant.location">Austin, TX</p>
+                        
+                        <div class="bg-warm-beige p-3 rounded-lg mb-4">
+                            <p class="text-sm text-gray-700">
+                                <i class="fas fa-quote-left text-warm-orange mr-1"></i>
+                                "Exclusively sourdough - no commercial yeast ever used..."
+                            </p>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm text-gray-600 mb-4">
+                            <span><i class="fas fa-star text-yellow-400 mr-1"></i>4.6 (156 reviews)</span>
+                            <span><i class="fas fa-clock mr-1"></i>3.1 miles</span>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button class="flex-1 bg-warm-orange text-white py-2 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-colors">
+                                <i class="fas fa-directions mr-2"></i>
+                                Directions
+                            </button>
+                            <button class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restaurant Card 5 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow" data-mock="true">
+                    <!-- Cozy restaurant exterior with outdoor seating -->
+                    <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=400" alt="Cozy restaurant exterior" class="w-full h-48 object-cover" />
+                    
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xl font-bold text-gray-900" data-bind="restaurant.name">Fermented & Fresh</h3>
+                            <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Verified
+                            </div>
+                        </div>
+                        
+                        <p class="text-gray-600 mb-3" data-bind="restaurant.location">Seattle, WA</p>
+                        
+                        <div class="bg-warm-beige p-3 rounded-lg mb-4">
+                            <p class="text-sm text-gray-700">
+                                <i class="fas fa-quote-left text-warm-orange mr-1"></i>
+                                "Long fermentation sourdough base with local ingredients..."
+                            </p>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm text-gray-600 mb-4">
+                            <span><i class="fas fa-star text-yellow-400 mr-1"></i>4.8 (94 reviews)</span>
+                            <span><i class="fas fa-clock mr-1"></i>1.7 miles</span>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button class="flex-1 bg-warm-orange text-white py-2 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-colors">
+                                <i class="fas fa-directions mr-2"></i>
+                                Directions
+                            </button>
+                            <button class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Restaurant Card 6 -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow" data-mock="true">
+                    <!-- Artisan baker working with sourdough -->
+                    <img src="https://images.unsplash.com/photo-1509440159596-0249088772ff?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=800&h=400" alt="Artisan baker working with dough" class="w-full h-48 object-cover" />
+                    
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-2">
+                            <h3 class="text-xl font-bold text-gray-900" data-bind="restaurant.name">Old World Sourdough</h3>
+                            <div class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Verified
+                            </div>
+                        </div>
+                        
+                        <p class="text-gray-600 mb-3" data-bind="restaurant.location">Denver, CO</p>
+                        
+                        <div class="bg-warm-beige p-3 rounded-lg mb-4">
+                            <p class="text-sm text-gray-700">
+                                <i class="fas fa-quote-left text-warm-orange mr-1"></i>
+                                "European-style naturally leavened crust with alpine cheeses..."
+                            </p>
+                        </div>
+                        
+                        <div class="flex items-center justify-between text-sm text-gray-600 mb-4">
+                            <span><i class="fas fa-star text-yellow-400 mr-1"></i>4.9 (73 reviews)</span>
+                            <span><i class="fas fa-clock mr-1"></i>2.8 miles</span>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button class="flex-1 bg-warm-orange text-white py-2 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-colors">
+                                <i class="fas fa-directions mr-2"></i>
+                                Directions
+                            </button>
+                            <button class="bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors">
+                                <i class="fas fa-phone"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_MAP )) -->
+
+            <div class="text-center mt-12">
+                <button class="bg-warm-orange text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-opacity-90 transition-colors">
+                    Load More Restaurants
+                </button>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: Restaurant Listings -->
+
+    <!-- @COMPONENT: How It Works Section -->
+    <section class="py-16 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    HOW WE
+                    <span class="block text-warm-orange">FIND SOURDOUGH</span>
+                </h2>
+                <p class="text-lg text-gray-600">Our verification process ensures authentic sourdough pizza</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="bg-warm-orange text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Google Maps Scan</h3>
+                    <p class="text-gray-600">We scan restaurant listings across Google Maps to find pizza places</p>
+                </div>
+
+                <div class="text-center">
+                    <div class="bg-warm-orange text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Keyword Detection</h3>
+                    <p class="text-gray-600">We analyze reviews, descriptions, and websites for "sourdough" and "naturally leavened"</p>
+                </div>
+
+                <div class="text-center">
+                    <div class="bg-warm-orange text-white w-16 h-16 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-900 mb-3">Verification</h3>
+                    <p class="text-gray-600">Restaurants are verified and marked to ensure authenticity for travelers</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- @END_COMPONENT: How It Works Section -->
+
+    <!-- @COMPONENT: Footer -->
+    <footer class="bg-gray-900 text-white py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center mb-4">
+                        <i class="fas fa-pizza-slice text-2xl text-warm-orange mr-3"></i>
+                        <h3 class="text-xl font-bold">SourDough Scout</h3>
+                    </div>
+                    <p class="text-gray-400">Discover authentic sourdough pizza restaurants across America for your next culinary adventure.</p>
+                </div>
+
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Features</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-colors">Interactive Map</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">City Search</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Restaurant Details</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Mobile Directions</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Support</h4>
+                    <ul class="space-y-2 text-gray-400">
+                        <li><a href="#" class="hover:text-white transition-colors">Submit a Restaurant</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Report an Error</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Contact Us</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">FAQ</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Connect</h4>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors text-xl">
+                            <i class="fab fa-twitter"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors text-xl">
+                            <i class="fab fa-instagram"></i>
+                        </a>
+                        <a href="#" class="text-gray-400 hover:text-white transition-colors text-xl">
+                            <i class="fab fa-facebook"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center">
+                <p class="text-gray-400">&copy; 2024 SourDough Scout. All rights reserved. Built for sourdough pizza lovers.</p>
+            </div>
+        </div>
+    </footer>
+    <!-- @END_COMPONENT: Footer -->
+
+    <script>
+        // TODO: Implement Google Maps API integration, search functionality, and restaurant filtering
+        (function() {
+            // Basic interactivity for mockup demonstration
+            const searchInput = document.querySelector('input[type="text"]');
+            const mapMarkers = document.querySelectorAll('[data-mock="true"]');
+            
+            // Mock search functionality
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    // TODO: Implement real search with backend API
+                    console.log('Search query:', this.value);
+                });
+            }
+
+            // Mock map marker interactions
+            mapMarkers.forEach(marker => {
+                if (marker.classList.contains('rounded-full')) {
+                    marker.addEventListener('click', function() {
+                        // TODO: Show restaurant popup with details
+                        console.log('Restaurant marker clicked');
+                    });
+                }
+            });
+
+            // Mock filter buttons
+            const filterButtons = document.querySelectorAll('button[class*="rounded-full"]');
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Remove active state from all buttons
+                    filterButtons.forEach(btn => {
+                        btn.classList.remove('bg-warm-orange', 'text-white');
+                        btn.classList.add('bg-gray-200', 'text-gray-700');
+                    });
+                    
+                    // Add active state to clicked button
+                    this.classList.remove('bg-gray-200', 'text-gray-700');
+                    this.classList.add('bg-warm-orange', 'text-white');
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

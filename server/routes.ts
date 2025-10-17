@@ -301,6 +301,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Complete 5-step discovery system (admin endpoint)
+  app.post("/api/admin/complete-discovery", async (req, res) => {
+    try {
+      const { city, state } = req.body;
+      if (!city || !state) {
+        return res.status(400).json({ error: "City and state parameters required" });
+      }
+      
+      // Run complete 5-step discovery in background
+      setTimeout(async () => {
+        try {
+          const { runCompleteDiscovery } = await import('./complete-discovery-system');
+          const results = await runCompleteDiscovery(city, state);
+          console.log(`Discovery completed for ${city}, ${state}:`, results);
+        } catch (error) {
+          console.error("Complete discovery failed:", error);
+        }
+      }, 100);
+      
+      res.json({ 
+        message: `Complete 5-step discovery started for ${city}, ${state}`,
+        instructions: "Running comprehensive discovery system with all 5 steps",
+        process: [
+          "Step 1: Search for 'sourdough pizza' and 'artisan pizza'",
+          "Step 2: Analyze Google Business Profiles for keywords", 
+          "Step 3: Scrape restaurant websites for keywords",
+          "Step 4: Check Instagram, Facebook, and Yelp profiles",
+          "Step 5: Compile results and add to map"
+        ],
+        expectedDuration: "20-40 minutes for thorough 5-step analysis"
+      });
+    } catch (error) {
+      console.error("Error starting complete discovery:", error);
+      res.status(500).json({ error: "Failed to start complete discovery" });
+    }
+  });
+
   // Google Maps comprehensive scraping (admin endpoint)
   app.post("/api/admin/google-maps", async (req, res) => {
     try {
