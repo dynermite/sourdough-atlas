@@ -59,6 +59,20 @@ const leafletCSS = `
   .leaflet-drag-target {
     cursor: grabbing !important;
   }
+  /* Prevent markers from interfering with map cursor */
+  .leaflet-marker-pane {
+    pointer-events: auto;
+  }
+  .leaflet-tile-pane {
+    cursor: inherit !important;
+  }
+  .leaflet-overlay-pane {
+    cursor: inherit !important;
+  }
+  /* Ensure map background always shows grab cursor */
+  .leaflet-container .leaflet-tile {
+    cursor: inherit !important;
+  }
 `;
 
 interface InteractiveMapProps {
@@ -188,6 +202,8 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           border: 2px solid white;
           transition: all 0.2s ease;
+          pointer-events: auto;
+          cursor: pointer;
         ">🍕</div>`,
         iconSize: [markerSize + 4, markerSize + 4],
         iconAnchor: [(markerSize + 4) / 2, (markerSize + 4) / 2]
@@ -195,7 +211,9 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
 
       const marker = L.marker([lat, lng], { 
         icon: pizzaIcon,
-        restaurantMarker: true
+        restaurantMarker: true,
+        interactive: true,
+        bubblingMouseEvents: false // Prevent marker events from bubbling to map
       }).addTo(map);
 
       // Create popup content
@@ -266,9 +284,23 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       });
 
       // Handle marker click
-      marker.on('click', () => {
+      marker.on('click', (e) => {
+        L.DomEvent.stopPropagation(e); // Prevent map click
         if (onRestaurantSelect) {
           onRestaurantSelect(restaurant);
+        }
+      });
+      
+      // Ensure marker hover doesn't interfere with map cursor
+      marker.on('mouseover', (e) => {
+        marker.getElement().style.cursor = 'pointer';
+      });
+      
+      marker.on('mouseout', (e) => {
+        // Reset to map cursor when leaving marker
+        const container = map.getContainer();
+        if (container && !map.dragging._dragging) {
+          container.style.cursor = 'grab';
         }
       });
 
@@ -344,11 +376,17 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       // Verify dragging is enabled
       console.log('Map dragging enabled:', map.dragging.enabled());
       
-      // Add drag event listeners to ensure proper cursor states
+      // Add comprehensive drag event listeners
       map.on('dragstart', () => {
         console.log('Drag started');
         if (mapRef.current) {
           mapRef.current.style.cursor = 'grabbing';
+          mapRef.current.style.pointerEvents = 'auto';
+        }
+        // Ensure all panes show grabbing cursor during drag
+        const container = map.getContainer();
+        if (container) {
+          container.style.cursor = 'grabbing';
         }
       });
       
@@ -356,6 +394,26 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
         console.log('Drag ended');
         if (mapRef.current) {
           mapRef.current.style.cursor = 'grab';
+        }
+        // Reset cursor on container
+        const container = map.getContainer();
+        if (container) {
+          container.style.cursor = 'grab';
+        }
+      });
+      
+      // Add mouse events to handle cursor properly
+      map.on('mouseover', () => {
+        if (mapRef.current && !map.dragging._dragging) {
+          mapRef.current.style.cursor = 'grab';
+        }
+      });
+      
+      // Ensure drag works even when markers are dense
+      map.on('drag', () => {
+        const container = map.getContainer();
+        if (container) {
+          container.style.cursor = 'grabbing';
         }
       });
       
@@ -365,6 +423,15 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
           const zoom = map.getZoom();
           setCurrentZoom(zoom);
           await updateVisibleRestaurants(map, zoom);
+          
+          // Ensure cursor is always grab after zoom/move
+          setTimeout(() => {
+            const container = map.getContainer();
+            if (container && mapRef.current) {
+              container.style.cursor = 'grab';
+              mapRef.current.style.cursor = 'grab';
+            }
+          }, 100);
         } catch (error) {
           console.error('Error handling map zoom/move:', error);
         }
