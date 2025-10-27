@@ -7,10 +7,16 @@ const leafletCSS = `
     height: 100%;
     width: 100%;
     font: 12px/1.5 "Helvetica Neue", Arial, Helvetica, sans-serif;
-    cursor: grab;
+    cursor: grab !important;
   }
   .leaflet-container:active {
-    cursor: grabbing;
+    cursor: grabbing !important;
+  }
+  .leaflet-dragging .leaflet-container {
+    cursor: grabbing !important;
+  }
+  .leaflet-clickable {
+    cursor: pointer !important;
   }
   .leaflet-popup-content-wrapper {
     background: white;
@@ -26,6 +32,32 @@ const leafletCSS = `
     color: #666;
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .leaflet-control-zoom a:hover {
+    background: #f0f0f0;
+  }
+  /* Ensure proper interaction states */
+  .leaflet-interactive {
+    cursor: pointer !important;
+  }
+  .leaflet-marker-icon {
+    cursor: pointer !important;
+  }
+  /* Override any conflicting styles */
+  .leaflet-container * {
+    box-sizing: border-box;
+  }
+  /* Map container specific styles */
+  .map-container {
+    cursor: grab !important;
+    user-select: none;
+  }
+  .map-container:active {
+    cursor: grabbing !important;
+  }
+  /* Ensure dragging works properly */
+  .leaflet-drag-target {
+    cursor: grabbing !important;
   }
 `;
 
@@ -286,7 +318,10 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
         touchZoom: true,
         doubleClickZoom: true,
         boxZoom: true,
-        keyboard: true
+        keyboard: true,
+        tap: false, // Disable tap to prevent conflicts on mobile
+        trackResize: true,
+        closePopupOnClick: false
       });
 
       // Set max bounds to focus on US
@@ -305,6 +340,24 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       }).addTo(map);
 
       leafletMapRef.current = map;
+      
+      // Verify dragging is enabled
+      console.log('Map dragging enabled:', map.dragging.enabled());
+      
+      // Add drag event listeners to ensure proper cursor states
+      map.on('dragstart', () => {
+        console.log('Drag started');
+        if (mapRef.current) {
+          mapRef.current.style.cursor = 'grabbing';
+        }
+      });
+      
+      map.on('dragend', () => {
+        console.log('Drag ended');
+        if (mapRef.current) {
+          mapRef.current.style.cursor = 'grab';
+        }
+      });
       
       // Add event listeners for dynamic loading
       map.on('zoomend moveend', async () => {
@@ -348,7 +401,7 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
       <div className="h-96 md:h-[500px] relative">
-        <div ref={mapRef} className="w-full h-full" />
+        <div ref={mapRef} className="w-full h-full map-container" style={{ cursor: 'grab' }} />
         
         {/* Loading indicator when map is initializing */}
         {!leafletMapRef.current && (
