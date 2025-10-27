@@ -27,30 +27,6 @@ const leafletCSS = `
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   }
-  .custom-navigation-controls {
-    position: absolute;
-    top: 80px;
-    right: 10px;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .nav-button {
-    background: white;
-    border: 1px solid #ccc;
-    width: 30px;
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    border-radius: 2px;
-  }
-  .nav-button:hover {
-    background: #f0f0f0;
-  }
 `;
 
 interface InteractiveMapProps {
@@ -62,64 +38,10 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
   const mapRef = useRef<any>(null);
   const leafletMapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
-  const [currentZoom, setCurrentZoom] = useState(4);
+  const [currentZoom, setCurrentZoom] = useState(5);
   const [visibleRestaurants, setVisibleRestaurants] = useState<Restaurant[]>([]);
 
-  const addNavigationControls = (map: any) => {
-    const L = (window as any).L;
-    
-    // Custom navigation control
-    const NavigationControl = L.Control.extend({
-      onAdd: function() {
-        const container = L.DomUtil.create('div', 'custom-navigation-controls');
-        
-        container.innerHTML = `
-          <div class="nav-button" id="nav-up">↑</div>
-          <div style="display: flex; gap: 2px;">
-            <div class="nav-button" id="nav-left">←</div>
-            <div class="nav-button" id="nav-right">→</div>
-          </div>
-          <div class="nav-button" id="nav-down">↓</div>
-        `;
-        
-        // Prevent map events on control
-        L.DomEvent.disableClickPropagation(container);
-        L.DomEvent.disableScrollPropagation(container);
-        
-        return container;
-      },
-      
-      onRemove: function() {}
-    });
-    
-    const navControl = new NavigationControl({ position: 'topright' });
-    navControl.addTo(map);
-    
-    // Add event listeners after control is added
-    setTimeout(() => {
-      const panDistance = 0.5; // degrees
-      
-      document.getElementById('nav-up')?.addEventListener('click', () => {
-        const center = map.getCenter();
-        map.panTo([center.lat + panDistance, center.lng]);
-      });
-      
-      document.getElementById('nav-down')?.addEventListener('click', () => {
-        const center = map.getCenter();
-        map.panTo([center.lat - panDistance, center.lng]);
-      });
-      
-      document.getElementById('nav-left')?.addEventListener('click', () => {
-        const center = map.getCenter();
-        map.panTo([center.lat, center.lng - panDistance]);
-      });
-      
-      document.getElementById('nav-right')?.addEventListener('click', () => {
-        const center = map.getCenter();
-        map.panTo([center.lat, center.lng + panDistance]);
-      });
-    }, 100);
-  };
+  // Removed custom navigation controls for better UX
 
   const updateVisibleRestaurants = async (map: any, zoom: number) => {
     if (!map) return;
@@ -201,9 +123,9 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
     markersRef.current.forEach(marker => map.removeLayer(marker));
     markersRef.current = [];
 
-    // Only show markers at appropriate zoom levels
-    if (zoom < 7) {
-      // At low zoom (country/state level), don't show any restaurants
+    // Show markers at lower zoom levels for better initial experience
+    if (zoom < 5) {
+      // At very low zoom (continent level), don't show restaurants
       return;
     }
 
@@ -215,8 +137,8 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       const lat = restaurant.latitude || 39.8283;
       const lng = restaurant.longitude || -98.5795;
 
-      // Scale marker size based on zoom
-      const markerSize = Math.max(16, Math.min(32, zoom * 3));
+      // Scale marker size based on zoom (better visibility at all levels)
+      const markerSize = Math.max(20, Math.min(36, zoom * 4));
 
       // Create custom orange pizza icon
       const pizzaIcon = L.divIcon({
@@ -272,7 +194,7 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
             <button 
               onclick="window.open('https://maps.google.com/?q=${encodeURIComponent(`${restaurant.address || restaurant.name}, ${restaurant.city}, ${restaurant.state}`)}', '_blank')"
               style="
-                background-color: #ea580c;
+                background-color: #4285F4;
                 color: white;
                 border: none;
                 padding: 8px 12px;
@@ -280,9 +202,11 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
                 font-size: 12px;
                 cursor: pointer;
                 flex: 1;
+                font-weight: 500;
               "
+              title="Opens in Google Maps"
             >
-              📍 Get Directions
+              🗺️ Google Maps
             </button>
             ${restaurant.website ? `
               <button 
@@ -353,9 +277,9 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       // Initialize map centered on US with proper bounds
       const map = L.map(mapRef.current, {
         center: [39.8283, -98.5795],
-        zoom: 4,
+        zoom: 5,
         minZoom: 3,
-        maxZoom: 15,
+        maxZoom: 18,
         scrollWheelZoom: true,
         zoomControl: true,
         dragging: true,
@@ -382,9 +306,6 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
 
       leafletMapRef.current = map;
       
-      // Add navigation controls
-      addNavigationControls(map);
-      
       // Add event listeners for dynamic loading
       map.on('zoomend moveend', async () => {
         try {
@@ -397,7 +318,7 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       });
       
       // Initial load
-      await updateVisibleRestaurants(map, 4);
+      await updateVisibleRestaurants(map, 5);
     }
 
     return () => {
@@ -443,18 +364,41 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
         {leafletMapRef.current && (
           <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg z-30">
             <div className="text-sm text-gray-700">
-              <div className="font-medium">Zoom Level: {currentZoom}</div>
+              <div className="font-medium">🍕 {visibleRestaurants.length} restaurants found</div>
               <div className="text-xs text-gray-500 mt-1">
                 {currentZoom < 6 
-                  ? 'Showing major cities only' 
-                  : `${visibleRestaurants.length} restaurants in view`
+                  ? 'Zoom in to see restaurants' 
+                  : 'Click markers for details & directions'
                 }
               </div>
               {currentZoom >= 10 && (
                 <div className="text-xs text-blue-600 mt-1">
-                  🔍 Auto-discovering restaurants in this area
+                  🔍 Auto-discovering more restaurants
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        
+        {/* No restaurants message */}
+        {leafletMapRef.current && currentZoom >= 6 && visibleRestaurants.length === 0 && (
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center z-40">
+            <div className="bg-white rounded-lg p-6 max-w-sm mx-4 text-center shadow-xl">
+              <div className="text-2xl mb-2">🍕</div>
+              <h3 className="font-semibold text-gray-900 mb-2">No restaurants found in this area</h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Try zooming out or moving to a different location. We're constantly discovering new sourdough pizza places!
+              </p>
+              <button 
+                className="bg-warm-orange text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors"
+                onClick={() => {
+                  if (leafletMapRef.current) {
+                    leafletMapRef.current.setView([39.8283, -98.5795], 5);
+                  }
+                }}
+              >
+                Reset View
+              </button>
             </div>
           </div>
         )}
@@ -468,8 +412,8 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
             <span>Verified Sourdough Pizza</span>
           </div>
           <div className="flex items-center gap-2">
-            <i className="fas fa-route text-gray-600"></i>
-            <span>Click for directions</span>
+            <span className="text-lg">🗺️</span>
+            <span>Click markers for Google Maps directions</span>
           </div>
         </div>
       </div>
