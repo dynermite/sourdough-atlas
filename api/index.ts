@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express from "express";
-import { registerRoutes } from "../server/routes";
-import { seedDatabase } from "../server/seed-data";
+import { registerRoutes } from "../server/routes.js";
+import { seedDatabase } from "../server/seed-data.js";
 
 let app: express.Application | null = null;
 

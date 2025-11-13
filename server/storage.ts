@@ -1,5 +1,5 @@
 import { restaurants, type Restaurant, type InsertRestaurant } from "@shared/schema";
-import { db } from "./db";
+import { db } from "./db.js";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "crypto";
 
