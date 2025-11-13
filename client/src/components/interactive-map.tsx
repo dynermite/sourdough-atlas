@@ -220,64 +220,81 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       return;
     }
     
-    // At higher zoom levels, reduce marker density to prevent drag interference
-    if (zoom > 10 && restaurantsToShow.length > 20) {
-      // Show only every 3rd restaurant at very high zoom to reduce interference
-      restaurantsToShow = restaurantsToShow.filter((_, index) => index % 3 === 0);
-    } else if (zoom > 8 && restaurantsToShow.length > 10) {
-      // Show every other restaurant at high zoom
-      restaurantsToShow = restaurantsToShow.filter((_, index) => index % 2 === 0);
-    }
-
     if (!restaurantsToShow || restaurantsToShow.length === 0) {
       return; // Exit early if no restaurants to show
     }
+
+    // Use CSS-based markers instead of Leaflet markers to avoid interference
+    const mapContainer = map.getContainer();
+    
+    // Remove any existing CSS markers
+    const existingCssMarkers = mapContainer.querySelectorAll('.css-restaurant-marker');
+    existingCssMarkers.forEach((marker: Element) => marker.remove());
 
     restaurantsToShow.forEach((restaurant) => {
       const lat = restaurant.latitude || 39.8283;
       const lng = restaurant.longitude || -98.5795;
 
-      // Scale marker size based on zoom (better visibility at all levels)
+      // Convert lat/lng to pixel coordinates
+      const point = map.latLngToContainerPoint([lat, lng]);
+      
+      // Scale marker size based on zoom
       const markerSize = Math.max(20, Math.min(36, zoom * 4));
 
-      // Create custom orange pizza icon
-      const pizzaIcon = L.divIcon({
-        className: 'custom-pizza-marker',
-        html: `<div style="
-          background-color: #ea580c;
-          border-radius: 50%;
-          width: ${markerSize}px;
-          height: ${markerSize}px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: ${markerSize * 0.5}px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-          border: 2px solid white;
-          transition: all 0.2s ease;
-          pointer-events: none;
-          position: relative;
-          z-index: 1000;
-        ">🍕</div>`,
-        iconSize: [markerSize + 4, markerSize + 4],
-        iconAnchor: [(markerSize + 4) / 2, (markerSize + 4) / 2]
-      });
-
-      // Create completely non-interactive marker for display only
-      const marker = L.marker([lat, lng], { 
-        icon: pizzaIcon,
-        interactive: false, // Completely disable all interaction
-        bubblingMouseEvents: false,
-        riseOnHover: false
-      }).addTo(map);
-
-      // Store marker data for potential click handling via map clicks
-      (marker as any).restaurantData = restaurant;
-
-      // Store marker for cleanup
-      markersRef.current.push(marker);
+      // Create CSS-based marker element
+      const markerElement = document.createElement('div');
+      markerElement.className = 'css-restaurant-marker';
+      markerElement.style.cssText = `
+        position: absolute;
+        left: ${point.x - markerSize / 2}px;
+        top: ${point.y - markerSize / 2}px;
+        width: ${markerSize}px;
+        height: ${markerSize}px;
+        background-color: #ea580c;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: ${markerSize * 0.5}px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        border: 2px solid white;
+        pointer-events: none;
+        z-index: 500;
+        user-select: none;
+      `;
+      markerElement.innerHTML = '🍕';
+      
+      // Store restaurant data for click handling
+      (markerElement as any).restaurantData = restaurant;
+      
+      mapContainer.appendChild(markerElement);
+      markersRef.current.push(markerElement);
     });
+    
+    // Update marker positions when map moves or zooms
+    const updateMarkerPositions = () => {
+      const cssMarkers = mapContainer.querySelectorAll('.css-restaurant-marker');
+      cssMarkers.forEach((markerElement: any) => {
+        const restaurant = markerElement.restaurantData;
+        if (restaurant) {
+          const lat = restaurant.latitude || 39.8283;
+          const lng = restaurant.longitude || -98.5795;
+          const point = map.latLngToContainerPoint([lat, lng]);
+          const currentZoom = map.getZoom();
+          const markerSize = Math.max(20, Math.min(36, currentZoom * 4));
+          
+          markerElement.style.left = `${point.x - markerSize / 2}px`;
+          markerElement.style.top = `${point.y - markerSize / 2}px`;
+          markerElement.style.width = `${markerSize}px`;
+          markerElement.style.height = `${markerSize}px`;
+          markerElement.style.fontSize = `${markerSize * 0.5}px`;
+        }
+      });
+    };
+    
+    // Store the update function to call it during map events
+    (map as any).updateMarkerPositions = updateMarkerPositions;
   };
 
   useEffect(() => {
@@ -356,24 +373,37 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
         (map.dragging as any)._dragStartThreshold = 1; // Very small threshold
       }
       
-      // Handle map clicks for restaurant selection (since markers are non-interactive)
+      // Handle map clicks for restaurant selection (since markers are non-interactive CSS elements)
       map.on('click', (e) => {
-        const clickPoint = e.latlng;
+        const clickPoint = map.latLngToContainerPoint(e.latlng);
         const currentZoom = map.getZoom();
         
-        // Find nearest restaurant marker within reasonable distance
+        // Find nearest CSS marker within click radius
         let nearestRestaurant = null;
         let minDistance = Infinity;
-        const maxClickDistance = Math.max(20, 100 / currentZoom); // Smaller click area at higher zoom
+        const maxClickDistance = Math.max(30, 50 / currentZoom); // Pixel-based distance for CSS markers
         
-        markersRef.current.forEach((marker) => {
-          if ((marker as any).restaurantData) {
-            const markerPos = marker.getLatLng();
-            const distance = clickPoint.distanceTo(markerPos);
+        const mapContainer = map.getContainer();
+        const cssMarkers = mapContainer.querySelectorAll('.css-restaurant-marker');
+        
+        cssMarkers.forEach((markerElement: any) => {
+          if (markerElement.restaurantData) {
+            const markerRect = markerElement.getBoundingClientRect();
+            const mapRect = mapContainer.getBoundingClientRect();
+            
+            // Get marker center relative to map container
+            const markerCenterX = markerRect.left - mapRect.left + markerRect.width / 2;
+            const markerCenterY = markerRect.top - mapRect.top + markerRect.height / 2;
+            
+            // Calculate distance from click to marker center
+            const distance = Math.sqrt(
+              Math.pow(clickPoint.x - markerCenterX, 2) + 
+              Math.pow(clickPoint.y - markerCenterY, 2)
+            );
             
             if (distance < maxClickDistance && distance < minDistance) {
               minDistance = distance;
-              nearestRestaurant = (marker as any).restaurantData;
+              nearestRestaurant = markerElement.restaurantData;
             }
           }
         });
@@ -383,12 +413,17 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
         }
       });
       
-      // Add event listeners for dynamic loading
+      // Add event listeners for dynamic loading and marker updates
       map.on('zoomend moveend', async () => {
         try {
           const zoom = map.getZoom();
           setCurrentZoom(zoom);
           await updateVisibleRestaurants(map, zoom);
+          
+          // Update CSS marker positions
+          if ((map as any).updateMarkerPositions) {
+            (map as any).updateMarkerPositions();
+          }
           
           // Ensure cursor is always grab after zoom/move
           setTimeout(() => {
@@ -403,6 +438,13 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
         }
       });
       
+      // Also update marker positions during drag for smooth movement
+      map.on('drag', () => {
+        if ((map as any).updateMarkerPositions) {
+          (map as any).updateMarkerPositions();
+        }
+      });
+      
       // Initial load
       await updateVisibleRestaurants(map, 5);
     }
@@ -410,7 +452,22 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
     return () => {
       if (leafletMapRef.current) {
         try {
-          markersRef.current.forEach(marker => leafletMapRef.current.removeLayer(marker));
+          // Clean up CSS markers
+          const mapContainer = leafletMapRef.current.getContainer();
+          if (mapContainer) {
+            const cssMarkers = mapContainer.querySelectorAll('.css-restaurant-marker');
+            cssMarkers.forEach((marker: Element) => marker.remove());
+          }
+          
+          // Clean up any remaining Leaflet markers
+          markersRef.current.forEach(marker => {
+            if (marker && marker.remove) {
+              marker.remove();
+            } else if (leafletMapRef.current && marker && leafletMapRef.current.removeLayer) {
+              leafletMapRef.current.removeLayer(marker);
+            }
+          });
+          
           leafletMapRef.current.remove();
           leafletMapRef.current = null;
           markersRef.current = [];
