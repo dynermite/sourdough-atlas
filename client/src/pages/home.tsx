@@ -4,7 +4,7 @@ import Header from "@/components/header";
 import Footer from "@/components/footer";
 import SearchBar from "@/components/search-bar";
 import RestaurantCard from "@/components/restaurant-card";
-import InteractiveMap from "@/components/interactive-map";
+import SimpleMap from "@/components/simple-map";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Restaurant } from "@shared/schema";
@@ -127,7 +127,7 @@ export default function Home() {
           {isLoading ? (
             <Skeleton className="h-96 md:h-[500px] rounded-2xl" />
           ) : (
-            <InteractiveMap restaurants={allRestaurants} />
+            <SimpleMap restaurants={allRestaurants} />
           )}
         </div>
       </section>
