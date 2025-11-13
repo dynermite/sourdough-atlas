@@ -65,18 +65,91 @@ export default function SimpleMap({ restaurants, onRestaurantSelect }: SimpleMap
       markersRef.current.forEach(marker => map.removeLayer(marker));
       markersRef.current = [];
 
-      // Add simple markers
-      restaurants.slice(0, 20).forEach((restaurant) => {
+      // Show all available restaurants with pizza icons
+      restaurants.forEach((restaurant) => {
         const lat = restaurant.latitude || 39.8283;
         const lng = restaurant.longitude || -98.5795;
 
-        const marker = L.marker([lat, lng]).addTo(map);
+        // Create custom pizza icon
+        const pizzaIcon = L.divIcon({
+          className: 'pizza-marker',
+          html: `<div style="
+            background-color: #ea580c;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border: 2px solid white;
+          ">🍕</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+
+        const marker = L.marker([lat, lng], { icon: pizzaIcon }).addTo(map);
         
         marker.bindPopup(`
-          <div style="min-width: 200px;">
-            <h3 style="margin: 0 0 8px 0;">${restaurant.name}</h3>
-            <p style="margin: 4px 0;">${restaurant.city}, ${restaurant.state}</p>
-            ${restaurant.description ? `<p style="margin: 4px 0; font-size: 12px;">${restaurant.description}</p>` : ''}
+          <div style="min-width: 250px;">
+            <h3 style="margin: 0 0 8px 0; font-weight: bold; color: #1f2937; font-size: 16px;">
+              ${restaurant.name}
+            </h3>
+            <p style="margin: 4px 0; color: #6b7280; font-size: 14px;">
+              📍 ${restaurant.city}, ${restaurant.state}
+            </p>
+            ${restaurant.address ? `
+              <p style="margin: 4px 0; color: #9ca3af; font-size: 12px;">
+                ${restaurant.address}
+              </p>
+            ` : ''}
+            ${restaurant.rating ? `
+              <p style="margin: 8px 0; color: #6b7280; font-size: 14px;">
+                ⭐ ${restaurant.rating}${restaurant.reviewCount ? ` (${restaurant.reviewCount} reviews)` : ''}
+              </p>
+            ` : ''}
+            ${restaurant.description ? `
+              <p style="margin: 8px 0; color: #6b7280; font-size: 12px; line-height: 1.4;">
+                ${restaurant.description.length > 150 ? restaurant.description.substring(0, 150) + '...' : restaurant.description}
+              </p>
+            ` : ''}
+            <div style="margin-top: 12px; display: flex; gap: 8px;">
+              <button 
+                onclick="window.open('https://maps.google.com/?q=${encodeURIComponent(`${restaurant.address || restaurant.name}, ${restaurant.city}, ${restaurant.state}`)}', '_blank')"
+                style="
+                  background-color: #4285F4;
+                  color: white;
+                  border: none;
+                  padding: 8px 12px;
+                  border-radius: 6px;
+                  font-size: 12px;
+                  cursor: pointer;
+                  flex: 1;
+                  font-weight: 500;
+                "
+                title="Opens in Google Maps"
+              >
+                🗺️ Google Maps
+              </button>
+              ${restaurant.website ? `
+                <button 
+                  onclick="window.open('${restaurant.website}', '_blank')"
+                  style="
+                    background-color: white;
+                    color: #6b7280;
+                    border: 1px solid #d1d5db;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 12px;
+                    cursor: pointer;
+                  "
+                >
+                  🌐 Website
+                </button>
+              ` : ''}
+            </div>
           </div>
         `);
 
@@ -108,12 +181,12 @@ export default function SimpleMap({ restaurants, onRestaurantSelect }: SimpleMap
       <div className="p-4 border-t bg-gray-50">
         <div className="flex items-center justify-center gap-6 text-sm">
           <div className="flex items-center gap-2">
-            <span>📍</span>
-            <span>Showing {Math.min(20, restaurants.length)} restaurants</span>
+            <div className="w-3 h-3 bg-orange-600 rounded-full"></div>
+            <span>🍕 {restaurants.length} verified sourdough pizza restaurants</span>
           </div>
           <div className="flex items-center gap-2">
-            <span>🍕</span>
-            <span>Click markers for details</span>
+            <span>🗺️</span>
+            <span>Click markers for Google Maps directions</span>
           </div>
         </div>
       </div>
