@@ -64,14 +64,35 @@ const leafletCSS = `
     pointer-events: auto;
   }
   .leaflet-tile-pane {
-    cursor: inherit !important;
+    cursor: grab !important;
+    pointer-events: auto;
   }
   .leaflet-overlay-pane {
-    cursor: inherit !important;
+    cursor: grab !important;
+    pointer-events: auto;
   }
   /* Ensure map background always shows grab cursor */
   .leaflet-container .leaflet-tile {
-    cursor: inherit !important;
+    cursor: grab !important;
+  }
+  /* Ensure map panes don't interfere with dragging */
+  .leaflet-pane {
+    cursor: grab !important;
+  }
+  .leaflet-container.leaflet-touch-drag {
+    cursor: grabbing !important;
+  }
+  /* Override marker pointer events when dragging */
+  .leaflet-dragging .leaflet-marker-pane {
+    pointer-events: none !important;
+  }
+  /* Completely disable marker pointer events to prevent drag interference */
+  .leaflet-marker-pane {
+    pointer-events: none !important;
+  }
+  /* Force map drag to always work */
+  .leaflet-container {
+    touch-action: manipulation !important;
   }
 `;
 
@@ -202,108 +223,27 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           border: 2px solid white;
           transition: all 0.2s ease;
-          pointer-events: auto;
+          pointer-events: none;
           cursor: pointer;
+          position: relative;
+          z-index: 1000;
         ">🍕</div>`,
         iconSize: [markerSize + 4, markerSize + 4],
         iconAnchor: [(markerSize + 4) / 2, (markerSize + 4) / 2]
       });
 
+      // Create completely non-interactive marker for display only
       const marker = L.marker([lat, lng], { 
         icon: pizzaIcon,
-        restaurantMarker: true,
-        interactive: true,
-        bubblingMouseEvents: false // Prevent marker events from bubbling to map
+        interactive: false, // Completely disable all interaction
+        bubblingMouseEvents: false,
+        riseOnHover: false
       }).addTo(map);
 
-      // Create popup content
-      const popupContent = `
-        <div style="min-width: 250px;">
-          <h3 style="margin: 0 0 8px 0; font-weight: bold; color: #1f2937; font-size: 16px;">
-            ${restaurant.name}
-          </h3>
-          <p style="margin: 4px 0; color: #6b7280; font-size: 14px;">
-            📍 ${restaurant.city}, ${restaurant.state}
-          </p>
-          ${restaurant.address ? `
-            <p style="margin: 4px 0; color: #9ca3af; font-size: 12px;">
-              ${restaurant.address}
-            </p>
-          ` : ''}
-          ${restaurant.rating ? `
-            <p style="margin: 8px 0; color: #6b7280; font-size: 14px;">
-              ⭐ ${restaurant.rating}${restaurant.reviewCount ? ` (${restaurant.reviewCount} reviews)` : ''}
-            </p>
-          ` : ''}
-          ${restaurant.description ? `
-            <p style="margin: 8px 0; color: #6b7280; font-size: 12px; line-height: 1.4;">
-              ${restaurant.description.length > 150 ? restaurant.description.substring(0, 150) + '...' : restaurant.description}
-            </p>
-          ` : ''}
-          <div style="margin-top: 12px; display: flex; gap: 8px;">
-            <button 
-              onclick="window.open('https://maps.google.com/?q=${encodeURIComponent(`${restaurant.address || restaurant.name}, ${restaurant.city}, ${restaurant.state}`)}', '_blank')"
-              style="
-                background-color: #4285F4;
-                color: white;
-                border: none;
-                padding: 8px 12px;
-                border-radius: 6px;
-                font-size: 12px;
-                cursor: pointer;
-                flex: 1;
-                font-weight: 500;
-              "
-              title="Opens in Google Maps"
-            >
-              🗺️ Google Maps
-            </button>
-            ${restaurant.website ? `
-              <button 
-                onclick="window.open('${restaurant.website}', '_blank')"
-                style="
-                  background-color: white;
-                  color: #6b7280;
-                  border: 1px solid #d1d5db;
-                  padding: 8px 12px;
-                  border-radius: 6px;
-                  font-size: 12px;
-                  cursor: pointer;
-                "
-              >
-                🌐 Website
-              </button>
-            ` : ''}
-          </div>
-        </div>
-      `;
+      // Store marker data for potential click handling via map clicks
+      (marker as any).restaurantData = restaurant;
 
-      marker.bindPopup(popupContent, {
-        maxWidth: 320,
-        closeButton: true
-      });
-
-      // Handle marker click
-      marker.on('click', (e) => {
-        L.DomEvent.stopPropagation(e); // Prevent map click
-        if (onRestaurantSelect) {
-          onRestaurantSelect(restaurant);
-        }
-      });
-      
-      // Ensure marker hover doesn't interfere with map cursor
-      marker.on('mouseover', (e) => {
-        marker.getElement().style.cursor = 'pointer';
-      });
-      
-      marker.on('mouseout', (e) => {
-        // Reset to map cursor when leaving marker
-        const container = map.getContainer();
-        if (container && !map.dragging._dragging) {
-          container.style.cursor = 'grab';
-        }
-      });
-
+      // Store marker for cleanup
       markersRef.current.push(marker);
     });
   };
@@ -353,7 +293,8 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
         keyboard: true,
         tap: false, // Disable tap to prevent conflicts on mobile
         trackResize: true,
-        closePopupOnClick: false
+        closePopupOnClick: false,
+        attributionControl: false // Simplify interface
       });
 
       // Set max bounds to focus on US
@@ -376,44 +317,30 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       // Verify dragging is enabled
       console.log('Map dragging enabled:', map.dragging.enabled());
       
-      // Add comprehensive drag event listeners
-      map.on('dragstart', () => {
-        console.log('Drag started');
-        if (mapRef.current) {
-          mapRef.current.style.cursor = 'grabbing';
-          mapRef.current.style.pointerEvents = 'auto';
-        }
-        // Ensure all panes show grabbing cursor during drag
-        const container = map.getContainer();
-        if (container) {
-          container.style.cursor = 'grabbing';
-        }
-      });
-      
-      map.on('dragend', () => {
-        console.log('Drag ended');
-        if (mapRef.current) {
-          mapRef.current.style.cursor = 'grab';
-        }
-        // Reset cursor on container
-        const container = map.getContainer();
-        if (container) {
-          container.style.cursor = 'grab';
-        }
-      });
-      
-      // Add mouse events to handle cursor properly
-      map.on('mouseover', () => {
-        if (mapRef.current && !map.dragging._dragging) {
-          mapRef.current.style.cursor = 'grab';
-        }
-      });
-      
-      // Ensure drag works even when markers are dense
-      map.on('drag', () => {
-        const container = map.getContainer();
-        if (container) {
-          container.style.cursor = 'grabbing';
+      // Handle map clicks for restaurant selection (since markers are non-interactive)
+      map.on('click', (e) => {
+        const clickPoint = e.latlng;
+        const currentZoom = map.getZoom();
+        
+        // Find nearest restaurant marker within reasonable distance
+        let nearestRestaurant = null;
+        let minDistance = Infinity;
+        const maxClickDistance = Math.max(20, 100 / currentZoom); // Smaller click area at higher zoom
+        
+        markersRef.current.forEach((marker) => {
+          if ((marker as any).restaurantData) {
+            const markerPos = marker.getLatLng();
+            const distance = clickPoint.distanceTo(markerPos);
+            
+            if (distance < maxClickDistance && distance < minDistance) {
+              minDistance = distance;
+              nearestRestaurant = (marker as any).restaurantData;
+            }
+          }
+        });
+        
+        if (nearestRestaurant && onRestaurantSelect) {
+          onRestaurantSelect(nearestRestaurant);
         }
       });
       

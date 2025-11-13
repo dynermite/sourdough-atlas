@@ -20,13 +20,11 @@ async function triggerAreaDiscovery(bounds: { north: number; south: number; east
   const city = await estimateCityFromCoordinates(centerLat, centerLng);
   
   if (city && process.env.OUTSCRAPER_API_KEY) {
-    const discovery = new OutscraperSourdoughDiscovery();
+    // Note: OutscraperSourdoughDiscovery class not found, using available discovery function
+    // const discovery = new OutscraperSourdoughDiscovery();
     try {
-      const newRestaurants = await discovery.processOutscraperData(
-        process.env.OUTSCRAPER_API_KEY,
-        city.name,
-        city.state
-      );
+      // TODO: Implement OutscraperSourdoughDiscovery or use available discovery function
+      const newRestaurants = await discoverAuthenticSourdough(city.name, city.state);
       console.log(`Discovered ${newRestaurants} new restaurants in ${city.name}, ${city.state}`);
     } catch (error) {
       console.error('Error in area discovery:', error);
@@ -227,8 +225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "City and state parameters required" });
       }
       
-      const { EnhancedSourdoughScraper } = await import('./enhanced-scraper');
-      const scraper = new EnhancedSourdoughScraper();
+      const { EnhancedPizzaDiscovery } = await import('./enhanced-scraper');
+      const scraper = new EnhancedPizzaDiscovery();
       await scraper.scrapeCity(city, state);
       
       res.json({ 
@@ -252,8 +250,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Run discovery in background with timeout
       setTimeout(async () => {
         try {
-          const { WebDiscoveryScraper } = await import('./web-discovery-scraper');
-          const scraper = new WebDiscoveryScraper();
+          const { WebDiscoveryScr } = await import('./web-discovery-scraper');
+          const scraper = new WebDiscoveryScr();
           await scraper.discoverAndAnalyzeCity(city, state);
         } catch (error) {
           console.error("Web discovery failed:", error);
@@ -416,7 +414,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error seeding verified restaurants:', error);
-      res.status(500).json({ message: "Failed to seed verified restaurants", error: error.message });
+      res.status(500).json({ message: "Failed to seed verified restaurants", error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

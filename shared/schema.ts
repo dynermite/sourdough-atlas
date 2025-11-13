@@ -9,7 +9,7 @@ export const restaurants = pgTable("restaurants", {
   address: text("address").notNull(),
   city: text("city").notNull(),
   state: text("state").notNull(),
-  zipCode: text("zip_code").default(null),
+  zipCode: text("zip_code").default(sql`null`),
   phone: text("phone"),
   website: text("website"),
   description: text("description"),

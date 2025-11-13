@@ -15,7 +15,7 @@ const getApp = async () => {
     await seedDatabase();
     
     // Register API routes
-    await registerRoutes(app);
+    await registerRoutes(app as any);
   }
   return app;
 };
