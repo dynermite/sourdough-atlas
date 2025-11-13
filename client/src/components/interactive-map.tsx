@@ -90,9 +90,33 @@ const leafletCSS = `
   .leaflet-marker-pane {
     pointer-events: none !important;
   }
+  .leaflet-marker-pane * {
+    pointer-events: none !important;
+  }
+  /* Override any inline styles that might re-enable pointer events */
+  .leaflet-marker-icon {
+    pointer-events: none !important;
+  }
+  .custom-pizza-marker {
+    pointer-events: none !important;
+  }
   /* Force map drag to always work */
   .leaflet-container {
     touch-action: manipulation !important;
+    cursor: grab !important;
+  }
+  .leaflet-container:active {
+    cursor: grabbing !important;
+  }
+  /* Ensure the map container always receives mouse events */
+  .leaflet-pane {
+    pointer-events: auto !important;
+  }
+  .leaflet-tile-pane {
+    pointer-events: auto !important;
+  }
+  .leaflet-overlay-pane {
+    pointer-events: auto !important;
   }
 `;
 
@@ -190,10 +214,19 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
     markersRef.current.forEach(marker => map.removeLayer(marker));
     markersRef.current = [];
 
-    // Show markers at lower zoom levels for better initial experience
+    // Show markers at appropriate zoom levels for better drag experience
     if (zoom < 5) {
       // At very low zoom (continent level), don't show restaurants
       return;
+    }
+    
+    // At higher zoom levels, reduce marker density to prevent drag interference
+    if (zoom > 10 && restaurantsToShow.length > 20) {
+      // Show only every 3rd restaurant at very high zoom to reduce interference
+      restaurantsToShow = restaurantsToShow.filter((_, index) => index % 3 === 0);
+    } else if (zoom > 8 && restaurantsToShow.length > 10) {
+      // Show every other restaurant at high zoom
+      restaurantsToShow = restaurantsToShow.filter((_, index) => index % 2 === 0);
     }
 
     if (!restaurantsToShow || restaurantsToShow.length === 0) {
@@ -224,7 +257,6 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
           border: 2px solid white;
           transition: all 0.2s ease;
           pointer-events: none;
-          cursor: pointer;
           position: relative;
           z-index: 1000;
         ">🍕</div>`,
@@ -316,6 +348,13 @@ export default function InteractiveMap({ restaurants, onRestaurantSelect }: Inte
       
       // Verify dragging is enabled
       console.log('Map dragging enabled:', map.dragging.enabled());
+      
+      // Force enable dragging and set aggressive drag options
+      if (map.dragging) {
+        map.dragging.enable();
+        // Make dragging more aggressive - smaller threshold for drag detection
+        (map.dragging as any)._dragStartThreshold = 1; // Very small threshold
+      }
       
       // Handle map clicks for restaurant selection (since markers are non-interactive)
       map.on('click', (e) => {
